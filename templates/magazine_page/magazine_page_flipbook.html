@@ -25,6 +25,39 @@
     />
 
     <style>
+    /* Remove fixed zoom to allow natural responsive scaling */
+    /* @media screen and (min-width: 1024px) {
+        body {
+            zoom:1.05;
+        }
+    } */
+    
+    /* Enhanced responsive styles */
+    .book-container {
+        transition: all 0.3s ease;
+    }
+    
+    /* Ensure proper scaling on different devices */
+    @media screen and (max-width: 767px) {
+      .book-container {
+        max-width: 95vw !important;
+        height: min(70vh, 500px) !important;
+      }
+    }
+    
+    @media screen and (min-width: 768px) and (max-width: 1023px) {
+      .book-container {
+        max-width: 90vw !important;
+        height: min(75vh, 600px) !important;
+      }
+    }
+    
+    @media screen and (min-width: 1024px) {
+      .book-container {
+        max-width: min(95vw, 1100px) !important;
+        height: min(80vh, 720px) !important;
+      }
+    }
       /* Base and Scrollbar Styles */
       ::-webkit-scrollbar {
         display: none;
@@ -401,12 +434,127 @@
         },
       };
     </script>
+
+    <!-- START: Add this new script for communication -->
+    <script>
+      document.addEventListener('DOMContentLoaded', () => {
+        // Listen for messages from the parent window
+        window.addEventListener('message', (event) => {
+          // For security, you might want to check event.origin
+          // if (event.origin !== 'http://your-parent-domain.com') return;
+
+          const command = event.data;
+          console.log('Message received from parent:', command);
+
+          // Handle fullscreen state updates from parent
+          if (command && command.action === 'fullscreenEntered') {
+            window.parentFullscreenState = true;
+            console.log('Parent confirmed fullscreen entered');
+            // Update button state when entering fullscreen
+            if (window.updateButtonState) {
+              window.updateButtonState();
+            }
+            // Trigger flipbook resize for fullscreen dimensions
+            setTimeout(() => {
+              if (window.app && window.app.pageFlip && window.app.pdfDocument) {
+                const currentPageIndex = window.app.pageFlip.getCurrentPageIndex();
+                const containerForFlipInstance = window.app.elements.flipBook;
+                
+                if (containerForFlipInstance.clientWidth > 0 && containerForFlipInstance.clientHeight > 0) {
+                  const { pageWidth, pageHeight, isMobile } = window.calculateOptimalDimensions(
+                    containerForFlipInstance.clientWidth,
+                    containerForFlipInstance.clientHeight
+                  );
+                  
+                  console.log('Reinitializing flipbook for fullscreen with dimensions:', pageWidth, pageHeight);
+                  initFlipbookInstance(currentPageIndex, pageWidth, pageHeight, isMobile);
+                }
+              }
+            }, 100);
+            return;
+          }
+          
+          if (command && command.action === 'fullscreenExited') {
+            window.parentFullscreenState = false;
+            console.log('Parent confirmed fullscreen exited');
+            // Update button state when exiting fullscreen
+            if (window.updateButtonState) {
+              window.updateButtonState();
+            }
+            // Trigger flipbook resize for normal dimensions
+            setTimeout(() => {
+              if (window.app && window.app.pageFlip && window.app.pdfDocument) {
+                const currentPageIndex = window.app.pageFlip.getCurrentPageIndex();
+                const containerForFlipInstance = window.app.elements.flipBook;
+                
+                if (containerForFlipInstance.clientWidth > 0 && containerForFlipInstance.clientHeight > 0) {
+                  const { pageWidth, pageHeight, isMobile } = window.calculateOptimalDimensions(
+                    containerForFlipInstance.clientWidth,
+                    containerForFlipInstance.clientHeight
+                  );
+                  
+                  console.log('Reinitializing flipbook for normal view with dimensions:', pageWidth, pageHeight);
+                  initFlipbookInstance(currentPageIndex, pageWidth, pageHeight, isMobile);
+                }
+              }
+            }, 100);
+            return;
+          }
+
+          // Make sure the flipbook app and instance exist for other commands
+          if (!window.app || !window.app.pageFlip) {
+            console.warn('Flipbook not ready to receive commands.');
+            return;
+          }
+
+          // Route commands to the correct flipbook function
+          if (command && command.action) {
+            switch (command.action) {
+              case 'navigate':
+                if (command.direction === 'next') {
+                  window.app.pageFlip.flipNext();
+                } else if (command.direction === 'prev') {
+                  window.app.pageFlip.flipPrev();
+                }
+                break;
+              
+              case 'goToPage':
+                // The flip() method is zero-indexed, so subtract 1
+                const pageIndex = parseInt(command.page, 10) - 1;
+                if (!isNaN(pageIndex) && pageIndex >= 0) {
+                  window.app.pageFlip.flip(pageIndex);
+                }
+                break;
+
+              case 'download':
+                // Send download request back to parent with PDF URL and filename
+                const pdfUrl = "https://iwyjssxhrcucnrkzkvmt.supabase.co/storage/v1/object/public/magazine-pdfs//CXO%20TechBOT%20October%202024-1-10.pdf";
+                const filename = pdfUrl.substring(pdfUrl.lastIndexOf("/") + 1) || "download.pdf";
+                event.source.postMessage({
+                  action: 'downloadResponse',
+                  pdfUrl: pdfUrl,
+                  filename: filename
+                }, event.origin);
+                break;
+              
+              // You can add more actions here
+              // case 'getCurrentPage':
+              //   const currentPage = window.app.pageFlip.getCurrentPageIndex() + 1;
+              //   // Send a message back to the parent
+              //   event.source.postMessage({ action: 'currentPage', page: currentPage }, event.origin);
+              //   break;
+            }
+          }
+        });
+      });
+    </script>
+    <!-- END: New script -->
+
   </head>
   <body class="font-jakarta bg-black text-bol-black">
-    {{ header | safe }}
     <!-- Middle Flipbook Section -->
     <div
-      class="App text-center flex-grow flex flex-col col-span-1 lg:col-span-3"
+      class="App text-center flex-grow flex flex-col col-span-1 lg:col-span-3 md:mt-[0px] mt-[4rem]"
     >
       <header
         class="App-header flex-grow flex flex-col items-center justify-center text-2xl p-5 box-border"
@@ -414,7 +562,8 @@
       >
         <div
           id="flipbook-wrapper"
-          class="relative w-full max-w-[1100px] h-[72vh] sm:h-[720px] mx-auto book-container"
+          class="relative w-full mx-auto book-container"
+          style="max-width: min(95vw, 1100px); height: min(80vh, 720px);"
         >
           <!-- Loading overlay -->
           <div
@@ -423,13 +572,14 @@
           ></div>
           <div
             id="my-flipbook-container"
-            class="w-full h-full max-w-[1100px] max-h-[720px]"
+            class="w-full h-full"
           ></div>
         </div>
 
         <!-- Progress Bar Section -->
         <div
-          class="progress-bar-section w-full max-w-[1100px] mx-auto mt-6 mb-4"
+          class="progress-bar-section w-full mx-auto mt-6 mb-4"
+          style="max-width: min(95vw, 1100px);"
         >
           <div class="flex items-center justify-between mb-2 text-sm text-gray-600">
             <div class="flex items-center gap-2">
@@ -493,14 +643,15 @@
                 <svg
                   id="toggle-fullscreen-icon"
                   class="w-4 h-4 transition-transform duration-200 hover:scale-110"
-                  fill="none"
+                  fill="currentColor"
                   stroke="currentColor"
-                  viewBox="0 0 24 24"
+                  viewBox="0 0 32 32"
                   xmlns="http://www.w3.org/2000/svg"
                 >
                   <path
+                    id="Exit_full_screen" data-name="Exit full screen"
                     fill="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="0"
-                    d="M10.41,13.83,12,15.41,13.59,13.83,15,15.24l-1.59,1.59,1.59,1.59-1.41,1.41-1.59-1.59-1.59,1.59-1.41-1.41,1.59-1.59L9,15.24ZM15.24,9,13.83,10.41,15.41,12,13.83,13.59,15,15,18,12,15,9ZM9,9,6,12,9,15l1.41-1.41L8.83,12,10.41,10.41,9,9Z" transform="scale(1.2) translate(-2, -2)"
+                    d="M202.583,1977.11h1.871a1.562,1.562,0,0,0,0-3.12H198.48a1.529,1.529,0,0,0-1.493,1.56v6.24a1.495,1.495,0,1,0,2.987,0v-3l6.293,6.66a1.511,1.511,0,1,0,2.133-2.14Zm-19.225.02h-1.89a1.571,1.571,0,0,1,0-3.14H187.5a1.539,1.539,0,0,1,1.509,1.57v6.29a1.51,1.51,0,1,1-3.018,0v-3.02l-6.359,6.71a1.526,1.526,0,0,1-2.156-2.16Zm19.319-14.24h1.88a1.561,1.561,0,0,1,0,3.12h-6a1.532,1.532,0,0,1-1.5-1.56v-6.24a1.5,1.5,0,1,1,3,0v3l6.324-6.66a1.526,1.526,0,0,1,2.144,0,1.511,1.511,0,0,1,0,2.14Zm-19.319-.02h-1.9a1.571,1.571,0,0,0,0,3.14h6.066a1.542,1.542,0,0,0,1.517-1.57v-6.29a1.517,1.517,0,1,0-3.033,0v3.02l-6.391-6.71a1.529,1.529,0,1,0-2.166,2.16Z" transform="translate(-177 -1954)"
                   />
                 </svg>
               </button>
@@ -513,8 +664,20 @@
 
     <script src="https://cdn.jsdelivr.net/npm/page-flip/dist/js/page-flip.browser.min.js"></script>
     <script>
-      // Get page number from server-side template
-      const INITIAL_PAGE_NUMBER = parseInt("{{ page_number }}", 10) || 1;
+      // Function to get URL parameter value
+      function getURLParameter(name) {
+        const urlParams = new URLSearchParams(window.location.search);
+        return urlParams.get(name);
+      }
+      
+      // Get page number from URL parameter 'page', fallback to server-side template, then to 1
+      const urlPageNumber = getURLParameter('page');
+      const serverPageNumber = "{{ page_number }}";
+      const INITIAL_PAGE_NUMBER = parseInt(urlPageNumber, 10) || parseInt(serverPageNumber, 10) || 1;
+      
+      console.log('URL page parameter:', urlPageNumber);
+      console.log('Server page number:', serverPageNumber);
+      console.log('Final initial page number:', INITIAL_PAGE_NUMBER);
       
       (function () {
         "use strict";
@@ -532,8 +695,7 @@
           // State flags
           isTransitioning: false,
           isResizing: false,
-          // isFullscreen: false, // Removed
-          // isFullscreenTransition: false, // Removed
+          isFullscreenTransition: false, // Add this back to prevent resize conflicts
 
           // Dimensions
           lastKnownWidth: 0,
@@ -617,19 +779,121 @@
 
           // Initialize app components
           const pdfUrl =
-            "{{ pdf_url }}"; // Public sample PDF
+            "https://iwyjssxhrcucnrkzkvmt.supabase.co/storage/v1/object/public/magazine-pdfs//CXO%20TechBOT%20October%202024-1-10.pdf"; // Public sample PDF
           loadPDF(pdfUrl);
 
           setTimeout(() => {
-            initializeExitFullscreenButton();
+            initializeFullscreenButton();
             initializeDownloadButton();
           }, 500);
         }
 
+        // Function to calculate optimal dimensions based on screen size and aspect ratio
+        function calculateOptimalDimensions(containerWidth, containerHeight) {
+          const viewportWidth = window.innerWidth;
+          const viewportHeight = window.innerHeight;
+          const mobileBreakpoint = 768;
+          const isMobile = viewportWidth < mobileBreakpoint;
+          
+          // Check if we're in fullscreen mode (either native fullscreen or parent iframe fullscreen)
+          const inNativeFullscreen = !!(
+            document.fullscreenElement ||
+            document.webkitFullscreenElement ||
+            document.mozFullScreenElement ||
+            document.msFullscreenElement
+          );
+          
+          const inParentFullscreen = window.parentFullscreenState || false;
+          const inFullscreen = inNativeFullscreen || inParentFullscreen;
+          
+          // Standard page aspect ratio (A4-like: 0.707)
+          const standardPageRatio = 0.707;
+          
+          if (inFullscreen) {
+            // In fullscreen mode: make pages much larger
+            if (isMobile) {
+              // Mobile fullscreen: single page, use most of the screen
+              let maxWidth = viewportWidth * 0.9;
+              let maxHeight = viewportHeight * 0.8;
+              
+              let pageWidth = maxWidth;
+              let pageHeight = pageWidth / standardPageRatio;
+              
+              if (pageHeight > maxHeight) {
+                pageHeight = maxHeight;
+                pageWidth = pageHeight * standardPageRatio;
+              }
+              
+              return {
+                pageWidth: Math.floor(pageWidth),
+                pageHeight: Math.floor(pageHeight),
+                isMobile: true
+              };
+            } else {
+              // Desktop fullscreen: use most of the screen for the spread
+              let maxWidth = viewportWidth * 0.95;
+              let maxHeight = viewportHeight * 0.85;
+              
+              // Each page is half the spread width
+              let pageWidth = Math.floor(maxWidth / 2);
+              let pageHeight = pageWidth / standardPageRatio;
+              
+              if (pageHeight > maxHeight) {
+                pageHeight = maxHeight;
+                pageWidth = Math.floor(pageHeight * standardPageRatio);
+              }
+              
+              return {
+                pageWidth: Math.max(pageWidth, 400), // Minimum width for readability
+                pageHeight: Math.max(pageHeight, 550), // Minimum height for readability
+                isMobile: false
+              };
+            }
+          } else {
+            // Normal mode: smaller, contained dimensions
+            if (isMobile) {
+              let maxWidth = Math.min(containerWidth, viewportWidth * 0.9);
+              let maxHeight = Math.min(containerHeight, viewportHeight * 0.6);
+              
+              let pageWidth = maxWidth;
+              let pageHeight = pageWidth / standardPageRatio;
+              
+              if (pageHeight > maxHeight) {
+                pageHeight = maxHeight;
+                pageWidth = pageHeight * standardPageRatio;
+              }
+              
+              return {
+                pageWidth: Math.floor(pageWidth),
+                pageHeight: Math.floor(pageHeight),
+                isMobile: true
+              };
+            } else {
+              let maxWidth = Math.min(containerWidth, viewportWidth * 0.85);
+              let maxHeight = Math.min(containerHeight, viewportHeight * 0.75);
+              
+              let pageWidth = Math.floor(maxWidth / 2);
+              let pageHeight = pageWidth / standardPageRatio;
+              
+              if (pageHeight > maxHeight) {
+                pageHeight = maxHeight;
+                pageWidth = Math.floor(pageHeight * standardPageRatio);
+              }
+              
+              return {
+                pageWidth,
+                pageHeight,
+                isMobile: false
+              };
+            }
+          }
+        }
+        
+        // Make calculateOptimalDimensions globally accessible
+        window.calculateOptimalDimensions = calculateOptimalDimensions;
+
         // Initialize resize observer
         const resizeObserver = new ResizeObserver(async (entries) => {
-          // if (app.isFullscreenTransition) return; // Removed: isFullscreenTransition no longer exists
-
           for (const entry of entries) {
             if (entry.target === app.elements.flipBookWrapper) {
               const { width, height } = entry.contentRect;
@@ -639,7 +903,8 @@
               ) {
                 app.lastKnownWidth = width;
                 app.lastKnownHeight = height;
-                if (!app.isResizing && app.pageFlip) {
+                // Skip resize handling during fullscreen transitions
+                if (!app.isResizing && !app.isFullscreenTransition && app.pageFlip) {
                   try {
                     app.isResizing = true;
                     const currentPageIndex = app.pageFlip.getCurrentPageIndex();
@@ -649,18 +914,17 @@
                       containerForFlipInstance.clientWidth > 0 &&
                       containerForFlipInstance.clientHeight > 0
                     ) {
-                      // --- START CHANGE: Responsive Logic ---
-                      const mobileBreakpoint = 768;
-                      const isMobile = window.innerWidth < mobileBreakpoint;
-                      
-                      const pageW = isMobile ? containerForFlipInstance.clientWidth : Math.floor(containerForFlipInstance.clientWidth / 2);
-                      const pageH = containerForFlipInstance.clientHeight;
+                      // --- START CHANGE: Enhanced Responsive Logic ---
+                      const { pageWidth, pageHeight, isMobile } = calculateOptimalDimensions(
+                        containerForFlipInstance.clientWidth,
+                        containerForFlipInstance.clientHeight
+                      );
                       
                       await initFlipbookInstance(
                         currentPageIndex,
-                        pageW,
-                        pageH,
-                        isMobile // Pass mobile state
+                        pageWidth,
+                        pageHeight,
+                        isMobile
                       );
                       // --- END CHANGE ---
                     } else {
@@ -694,6 +958,48 @@
           //   app.elements.body.classList.remove("fullscreen-mode");
           // }
           resizeObserver.disconnect();
+          
+          // Clean up event listeners
+          window.removeEventListener("resize", handleWindowResize);
+          window.removeEventListener("orientationchange", handleWindowResize);
+          if (windowResizeTimeout) {
+            clearTimeout(windowResizeTimeout);
+          }
+        }
+
+        // Debounced window resize handler for orientation changes
+        let windowResizeTimeout;
+        function handleWindowResize() {
+          clearTimeout(windowResizeTimeout);
+          windowResizeTimeout = setTimeout(async () => {
+            // Skip resize handling during fullscreen transitions
+            if (app.pageFlip && app.pdfDocument && !app.isFullscreenTransition) {
+              try {
+                const currentPageIndex = app.pageFlip.getCurrentPageIndex();
+                const containerForFlipInstance = app.elements.flipBook;
+                
+                if (containerForFlipInstance.clientWidth > 0 && containerForFlipInstance.clientHeight > 0) {
+                  const { pageWidth, pageHeight, isMobile } = calculateOptimalDimensions(
+                    containerForFlipInstance.clientWidth,
+                    containerForFlipInstance.clientHeight
+                  );
+                  
+                  // Update container height for better fit
+                  const optimalHeight = isMobile ? pageHeight + 40 : pageHeight + 40;
+                  app.elements.flipBookWrapper.style.height = `${Math.min(optimalHeight, window.innerHeight * 0.8)}px`;
+                  
+                  await initFlipbookInstance(
+                    currentPageIndex,
+                    pageWidth,
+                    pageHeight,
+                    isMobile
+                  );
+                }
+              } catch (error) {
+                console.error("Error handling window resize:", error);
+              }
+            }
+          }, 250); // 250ms debounce
         }
 
         // Set up application
@@ -705,6 +1011,14 @@
               "flipBookWrapper not found for ResizeObserver at setupApp."
             );
           }
+          
+          // Add window resize listener for orientation changes
+          window.addEventListener("resize", handleWindowResize);
+          window.addEventListener("orientationchange", () => {
+            // Delay slightly for orientation change to complete
+            setTimeout(handleWindowResize, 100);
+          });
+          
           window.addEventListener("unload", cleanup);
           window.app = app;
         }
@@ -714,10 +1028,16 @@
           document.addEventListener("DOMContentLoaded", () => {
             init();
             setupApp();
+            
+            // Add event listener for URL changes (back/forward navigation)
+            window.addEventListener('popstate', handleURLChange);
           });
         } else {
           init();
           setupApp();
+          
+          // Add event listener for URL changes (back/forward navigation)
+          window.addEventListener('popstate', handleURLChange);
         }
 
         function createPageDiv(pageNumber, totalPages) {
@@ -967,6 +1287,9 @@
 
           updateProgressBar(newPageIndex, totalPages);
 
+          // Update URL with current page number
+          updateURLWithPage(currentPageNumber);
+
           // Send page change message to parent window (if in iframe)
           sendPageChangeToParent(currentPageNumber);
 
@@ -1002,6 +1325,36 @@
             }
           } catch (error) {
             console.error('Error sending page change message to parent:', error);
+          }
+        }
+
+        // Function to update URL without reloading the page
+        function updateURLWithPage(pageNumber) {
+          const url = new URL(window.location);
+          url.searchParams.set('page', pageNumber.toString());
+          
+          // Update URL without reloading the page
+          window.history.pushState({ page: pageNumber }, '', url.toString());
+          
+          console.log('Updated URL to page:', pageNumber);
+        }
+
+        // Function to handle URL changes (back/forward navigation)
+        function handleURLChange() {
+          const currentPage = getURLParameter('page');
+          const newPageNumber = parseInt(currentPage, 10);
+          
+          if (newPageNumber && app.pdfDocument && app.pageFlip) {
+            const totalPages = app.pdfDocument.numPages;
+            const validatedPageNumber = Math.max(1, Math.min(newPageNumber, totalPages));
+            const targetPageIndex = validatedPageNumber - 1;
+            
+            // Only flip if we're not already on this page
+            const currentPageIndex = app.pageFlip.getCurrentPageIndex();
+            if (currentPageIndex !== targetPageIndex) {
+              console.log(`URL changed to page ${newPageNumber}, flipping to page ${validatedPageNumber}`);
+              app.pageFlip.flip(targetPageIndex);
+            }
           }
         }
 
@@ -1083,8 +1436,8 @@
             await waitForReflow();
 
             const flipbookContainerElement = app.elements.flipBook;
-            const containerWidth = flipbookContainerElement.clientWidth;
-            const containerHeight = flipbookContainerElement.clientHeight;
+            let containerWidth = flipbookContainerElement.clientWidth;
+            let containerHeight = flipbookContainerElement.clientHeight;
 
             if (containerWidth <= 0 || containerHeight <= 0) {
               console.error(
@@ -1095,17 +1448,22 @@
               return;
             }
 
-            // --- START CHANGE: Responsive Logic ---
-            const mobileBreakpoint = 768; // Mobile breakpoint in pixels
-            const isMobile = window.innerWidth < mobileBreakpoint;
-
-            // For mobile, page width is the full container width. For desktop, it's half.
-            const pageWidth = isMobile ? containerWidth : Math.floor(containerWidth / 2);
-            const pageHeight = containerHeight;
+            // --- START CHANGE: Enhanced Responsive Logic ---
+            const { pageWidth, pageHeight, isMobile } = calculateOptimalDimensions(containerWidth, containerHeight);
+            
+            // Update container dimensions if needed for better aspect ratio
+            if (pageHeight * (isMobile ? 1 : 2) !== containerHeight) {
+              const optimalHeight = pageHeight;
+              app.elements.flipBookWrapper.style.height = `${optimalHeight}px`;
+              containerHeight = optimalHeight;
+            }
             // --- END CHANGE ---
 
-            // Convert page number to zero-based index for flipbook
-            const initialPageIndex = Math.max(0, INITIAL_PAGE_NUMBER - 1);
+            // Validate and convert page number to zero-based index for flipbook
+            const validatedPageNumber = Math.max(1, Math.min(INITIAL_PAGE_NUMBER, totalPages));
+            const initialPageIndex = validatedPageNumber - 1;
+            
+            console.log(`PDF has ${totalPages} pages. Requested page: ${INITIAL_PAGE_NUMBER}, Using page: ${validatedPageNumber}`);
             
             // --- START CHANGE: Pass `isMobile` flag ---
             await initFlipbookInstance(initialPageIndex, pageWidth, pageHeight, isMobile);
@@ -1158,7 +1516,9 @@
         // --- START CHANGE: Update function to accept `isMobile` flag ---
         async function initFlipbookInstance(startPageIdx, pageW, pageH, isMobile) {
         // --- END CHANGE ---
-          if (app.isResizing && app.pageFlip) {
+          // Skip initialization during fullscreen transitions
+          if ((app.isResizing && app.pageFlip) || app.isFullscreenTransition) {
+            console.log("Skipping flipbook initialization during transition");
             return;
           }
 
@@ -1187,6 +1547,19 @@
               );
             }
 
+            const pageElements =
+              flipBookElement.querySelectorAll(".flipbook-page");
+            if (!pageElements.length) {
+              console.log("No page elements found, deferring initialization");
+              // Defer initialization if no page elements (common during transitions)
+              setTimeout(() => {
+                if (!app.isFullscreenTransition) {
+                  initFlipbookInstance(startPageIdx, pageW, pageH, isMobile);
+                }
+              }, 200);
+              return;
+            }
+
             app.pageFlip = new St.PageFlip(flipBookElement, {
               width: pageW,
               height: pageH,
@@ -1207,14 +1580,6 @@
               autoSize: false,
               drawShadow: true,
             });
-
-            const pageElements =
-              flipBookElement.querySelectorAll(".flipbook-page");
-            if (!pageElements.length) {
-              throw new Error(
-                "No page elements to load into PageFlip instance."
-              );
-            }
 
             await Promise.race([
               new Promise((resolve) => {
@@ -1419,21 +1784,30 @@
           return new Promise((resolve) => requestAnimationFrame(resolve));
         }
 
-        // Simplified Fullscreen Exit Functionality
-        function initializeExitFullscreenButton() {
+        // Dynamic Fullscreen Toggle Functionality
+        function initializeFullscreenButton() {
           const fullscreenIcon = app.elements.fullscreenIcon;
           const fullscreenBtn = app.elements.fullscreenBtn;
-          // Set static icon as it only exits fullscreen (no text needed since we removed it)
-          if (fullscreenIcon) {
-            fullscreenIcon.innerHTML = `
-              <path
+          
+          // SVG content for different states
+          const enterFullscreenSVG = `
+            <path id="Full_screen" data-name="Full screen" class="cls-1"
                   fill="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="0"
-                  d="M10.41,13.83,12,15.41,13.59,13.83,15,15.24l-1.59,1.59,1.59,1.59-1.41,1.41-1.59-1.59-1.59,1.59-1.41-1.41,1.59-1.59L9,15.24ZM15.24,9,13.83,10.41,15.41,12,13.83,13.59,15,15,18,12,15,9ZM9,9,6,12,9,15l1.41-1.41L8.83,12,10.41,10.41,9,9Z" transform="scale(1.2) translate(-2, -2)"
-              />`;
-          }
+                  d="M92.583,1957.11h1.871a1.561,1.561,0,0,0,0-3.12H88.48a1.529,1.529,0,0,0-1.493,1.56v6.24a1.495,1.495,0,1,0,2.987,0v-3l6.293,6.66a1.511,1.511,0,1,0,2.134-2.14Zm20.775,0.02h-1.89a1.571,1.571,0,0,1,0-3.14H117.5a1.539,1.539,0,0,1,1.509,1.57v6.29a1.51,1.51,0,1,1-3.018,0v-3.02l-6.359,6.71a1.526,1.526,0,1,1-2.156-2.16Zm-20.775,25.76h1.871a1.561,1.561,0,0,1,0,3.12H88.48a1.529,1.529,0,0,1-1.493-1.56v-6.24a1.495,1.495,0,1,1,2.987,0v3l6.293-6.66a1.511,1.511,0,1,1,2.134,2.14Zm20.775-.02h-1.89a1.571,1.571,0,0,0,0,3.14H117.5a1.539,1.539,0,0,0,1.509-1.57v-6.29a1.51,1.51,0,1,0-3.018,0v3.02l-6.359-6.71a1.526,1.526,0,1,0-2.156,2.16Z"
+                  transform="translate(-87 -1954)"/>`;
+          
+          const exitFullscreenSVG = `
+            <path id="Exit_full_screen" data-name="Exit full screen"
+                  fill="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="0"
+                  d="M202.583,1977.11h1.871a1.562,1.562,0,0,0,0-3.12H198.48a1.529,1.529,0,0,0-1.493,1.56v6.24a1.495,1.495,0,1,0,2.987,0v-3l6.293,6.66a1.511,1.511,0,1,0,2.133-2.14Zm-19.225.02h-1.89a1.571,1.571,0,0,1,0-3.14H187.5a1.539,1.539,0,0,1,1.509,1.57v6.29a1.51,1.51,0,1,1-3.018,0v-3.02l-6.359,6.71a1.526,1.526,0,0,1-2.156-2.16Zm19.319-14.24h1.88a1.561,1.561,0,0,1,0,3.12h-6a1.532,1.532,0,0,1-1.5-1.56v-6.24a1.5,1.5,0,1,1,3,0v3l6.324-6.66a1.526,1.526,0,0,1,2.144,0,1.511,1.511,0,0,1,0,2.14Zm-19.319-.02h-1.9a1.571,1.571,0,0,0,0,3.14h6.066a1.542,1.542,0,0,0,1.517-1.57v-6.29a1.517,1.517,0,1,0-3.033,0v3.02l-6.391-6.71a1.529,1.529,0,1,0-2.166,2.16Z"
+                  transform="translate(-177 -1954)"/>`;
 
+          // Track fullscreen state via parent communication
+          // Initialize global fullscreen state for parent communication
+          window.parentFullscreenState = false;
+          
           function isInFullscreen() {
-            // Check if this document or any parent is in fullscreen
+            // Check if this document is in fullscreen
             const documentInFullscreen = !!(
               document.fullscreenElement ||
               document.webkitFullscreenElement ||
@@ -1441,85 +1815,155 @@
               document.msFullscreenElement
             );
             
-            // If we're in an iframe, also check if the parent has us in fullscreen
-            let parentInFullscreen = false;
-            try {
-              if (window.parent && window.parent !== window) {
-                parentInFullscreen = !!(
-                  window.parent.document.fullscreenElement ||
-                  window.parent.document.webkitFullscreenElement ||
-                  window.parent.document.mozFullScreenElement ||
-                  window.parent.document.msFullscreenElement
-                );
-              }
-            } catch (e) {
-              // Cross-origin restriction - assume we might be in fullscreen if we can't check
-              // We'll try the exit anyway since it's safer to attempt than to block
-              console.log("Cannot check parent fullscreen state due to cross-origin restriction");
+            // If we're in an iframe, use the state tracked via parent messages
+            if (window.parent && window.parent !== window) {
+              return window.parentFullscreenState || false;
             }
             
-            return documentInFullscreen || parentInFullscreen;
+            return documentInFullscreen;
+          }
+
+          function updateButtonState() {
+            const inFullscreen = isInFullscreen();
+            console.log("Updating button state. In fullscreen:", inFullscreen);
+            
+            // Reset transition flag after a shorter delay to allow natural resize handling
+            if (app.isFullscreenTransition) {
+              console.log("Fullscreen transition completed, resetting flag after delay");
+              setTimeout(() => {
+                app.isFullscreenTransition = false;
+                console.log("Transition flag reset - resize observers can now handle dimension changes");
+              }, 300); // Shorter delay to let resize observers handle the changes
+            }
+            
+            if (fullscreenIcon) {
+              const parentSvg = fullscreenIcon.closest('svg');
+              if (parentSvg) {
+                parentSvg.setAttribute('viewBox', '0 0 32 32');
+              }
+              
+              if (inFullscreen) {
+                fullscreenIcon.innerHTML = exitFullscreenSVG;
+                fullscreenBtn.title = "Exit Fullscreen";
+              } else {
+                fullscreenIcon.innerHTML = enterFullscreenSVG;
+                fullscreenBtn.title = "Enter Fullscreen";
+              }
+            }
+          }
+          
+          // Make updateButtonState globally accessible
+          window.updateButtonState = updateButtonState;
+
+          function triggerEnterFullscreen() {
+            console.log("triggerEnterFullscreen() function called");
+            
+            // Set transition flag to prevent resize conflicts
+            app.isFullscreenTransition = true;
+            
+            // Send message to parent window to request iframe fullscreen
+            try {
+              if (window.parent && window.parent !== window) {
+                console.log("Sending fullscreen request to parent window...");
+                window.parent.postMessage({
+                  action: 'requestFullscreen'
+                }, '*');
+              } else {
+                // Fallback: enter fullscreen on this document if not in iframe
+                console.log("Not in iframe - attempting to enter fullscreen on this document...");
+                const element = document.documentElement;
+                
+                if (element.requestFullscreen) {
+                  element.requestFullscreen().catch((err) => {
+                    console.warn("Could not enter fullscreen on this document:", err);
+                    app.isFullscreenTransition = false;
+                  });
+                } else if (element.webkitRequestFullscreen) {
+                  element.webkitRequestFullscreen();
+                } else if (element.mozRequestFullScreen) {
+                  element.mozRequestFullScreen();
+                } else if (element.msRequestFullscreen) {
+                  element.msRequestFullscreen();
+                }
+              }
+            } catch (e) {
+              console.error("Error requesting fullscreen:", e);
+              app.isFullscreenTransition = false;
+            }
           }
 
           function triggerExitFullscreen() {
             console.log("triggerExitFullscreen() function called");
             
-            // For iframe content, we'll try multiple approaches
-            let exitAttempted = false;
+            // Set transition flag to prevent resize conflicts
+            app.isFullscreenTransition = true;
             
-            // First, try exiting fullscreen on this document
-            if (document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement) {
-              console.log("This document has fullscreen element, attempting to exit...");
-              if (document.exitFullscreen) {
-                document.exitFullscreen().catch((err) => {
-                  console.warn("Could not exit fullscreen on this document:", err);
-                });
-                exitAttempted = true;
-              } else if (document.webkitExitFullscreen) {
-                document.webkitExitFullscreen();
-                exitAttempted = true;
-              }
-            }
-            
-            // If we're in an iframe, also try to exit fullscreen on the parent
+            // Send message to parent window to request exit fullscreen
             try {
               if (window.parent && window.parent !== window) {
-                console.log("Attempting to exit fullscreen on parent document...");
-                if (window.parent.document.exitFullscreen) {
-                  window.parent.document.exitFullscreen().catch((err) => {
-                    console.warn("Could not exit fullscreen on parent document:", err);
-                  });
-                  exitAttempted = true;
-                } else if (window.parent.document.webkitExitFullscreen) {
-                  window.parent.document.webkitExitFullscreen();
-                  exitAttempted = true;
+                console.log("Sending exit fullscreen request to parent window...");
+                window.parent.postMessage({
+                  action: 'exitFullscreen'
+                }, '*');
+              } else {
+                // Fallback: exit fullscreen on this document if not in iframe
+                console.log("Not in iframe - attempting to exit fullscreen on this document...");
+                if (document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement) {
+                  if (document.exitFullscreen) {
+                    document.exitFullscreen().catch((err) => {
+                      console.warn("Could not exit fullscreen on this document:", err);
+                      app.isFullscreenTransition = false;
+                    });
+                  } else if (document.webkitExitFullscreen) {
+                    document.webkitExitFullscreen();
+                  }
+                } else {
+                  console.warn("No fullscreen element found to exit.");
+                  app.isFullscreenTransition = false;
                 }
               }
             } catch (e) {
-              console.log("Cannot access parent document due to cross-origin restriction");
-            }
-            
-            if (!exitAttempted) {
-              console.warn("No fullscreen exit method was available or attempted.");
+              console.error("Error requesting exit fullscreen:", e);
+              app.isFullscreenTransition = false;
             }
           }
 
+          // Initial button state setup
+          updateButtonState();
+
+          // Click handler for toggle functionality
           fullscreenBtn.addEventListener("click", () => {
-            console.log("Exit Fullscreen button clicked");
+            const inFullscreen = isInFullscreen();
+            console.log("Fullscreen button clicked. Current state:", inFullscreen ? "fullscreen" : "normal");
             
-            // Always attempt to exit fullscreen when the button is clicked
-            // since this is specifically an "Exit Fullscreen" button
-            triggerExitFullscreen();
+            if (inFullscreen) {
+              triggerExitFullscreen();
+            } else {
+              triggerEnterFullscreen();
+            }
           });
 
-          // Optional: Listen for Escape key to ensure UI consistency if needed,
-          // though the primary action is now just exiting via button.
+          // Listen for fullscreen change events to update button state
+          const fullscreenEvents = ['fullscreenchange', 'webkitfullscreenchange', 'mozfullscreenchange', 'MSFullscreenChange'];
+          
+          fullscreenEvents.forEach(eventName => {
+            document.addEventListener(eventName, updateButtonState);
+            
+            // Also listen on parent document if in iframe
+            try {
+              if (window.parent && window.parent !== window) {
+                window.parent.document.addEventListener(eventName, updateButtonState);
+              }
+            } catch (e) {
+              // Cross-origin restriction
+            }
+          });
+
+          // Listen for Escape key to update UI when fullscreen is exited
           document.addEventListener("keydown", (e) => {
-            console.log("Keydown event detected, key:", e.key);
             if (e.key === "Escape") {
-              console.log("Escape key detected - calling triggerExitFullscreen()");
-              // Always attempt to exit on Escape key since that's the standard behavior
-              triggerExitFullscreen();
+              console.log("Escape key detected - updating button state");
+              setTimeout(updateButtonState, 100); // Small delay to let fullscreen exit complete
             }
           });
         }
@@ -1535,21 +1979,37 @@
             event.stopPropagation();
 
             try {
-              const pdfUrl =
-                "{{ pdf_url }}";
-              const link = document.createElement("a");
-              link.href = pdfUrl;
-              const filename =
-                pdfUrl.substring(pdfUrl.lastIndexOf("/") + 1) || "download.pdf";
-              link.download = filename;
-              document.body.appendChild(link);
-              link.click();
-              document.body.removeChild(link);
+              // Check if we're in an iframe and use postMessage
+              if (window.parent && window.parent !== window) {
+                console.log('Iframe download button clicked - sending message to parent');
+                const pdfUrl = "https://iwyjssxhrcucnrkzkvmt.supabase.co/storage/v1/object/public/magazine-pdfs//CXO%20TechBOT%20October%202024-1-10.pdf";
+                const filename = pdfUrl.substring(pdfUrl.lastIndexOf("/") + 1) || "download.pdf";
+                
+                // Send download request to parent
+                window.parent.postMessage({
+                  action: 'downloadResponse',
+                  pdfUrl: pdfUrl,
+                  filename: filename
+                }, '*');
+              } else {
+                // Fallback for non-iframe usage
+                const pdfUrl =
+                  "https://iwyjssxhrcucnrkzkvmt.supabase.co/storage/v1/object/public/magazine-pdfs//CXO%20TechBOT%20October%202024-1-10.pdf";
+                const link = document.createElement("a");
+                link.href = pdfUrl;
+                const filename =
+                  pdfUrl.substring(pdfUrl.lastIndexOf("/") + 1) || "download.pdf";
+                link.download = filename;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+              }
             } catch (error) {
               console.error("Error downloading PDF:", error);
             }
           });
         }
+
       })(); // End IIFE
     </script>
   </body>
