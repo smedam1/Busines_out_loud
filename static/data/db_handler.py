@@ -701,6 +701,10 @@ def user_login_db_check(email, password):
 #                            MAGAZINE PAGE FUNCTIONS                             #
 # --------------------------------------------------------------------------------#
 
+def get_magazine_url(name):
+    base_url = os.environ.get("SUPABASE_URL")
+    return f"{base_url}/storage/v1/object/public/magazine-pdfs/{name}"
+
 def create_magazine_db(title, pdf_file, thumbnail_file):
     pdf_filename = None
     thumbnail_filename = None
@@ -760,6 +764,18 @@ def create_magazine_db(title, pdf_file, thumbnail_file):
         print(f"Error creating magazine: {e}")
         return {"status": "error", "message": str(e)}
 
+def get_recent_magazines_db(limit=9):
+    print(f"Fetching recent magazines with limit: {limit}")
+    response = (
+        supabase.table("magazine_details")
+        .select("*")
+        .order("created_at", desc=True)
+        .range(0, limit - 1)
+        .execute()
+    )
+    if response.data:
+        return response.data
+    return []
 
 def get_magazine_details_db(magazine_id):
     print(f"Fetching magazine details for ID: {magazine_id}")
