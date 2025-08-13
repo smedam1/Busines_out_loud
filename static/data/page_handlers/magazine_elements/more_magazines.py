@@ -32,7 +32,7 @@ def get_more_magazines(data: dict) -> str:
         {get_horizontal_ad_banner(data.get("horizontal_ad_banner_1"))}
 
         <div class="w-full px-4">
-            <img src="static/images/explore_new_ideas.png" alt="Explore New Ideas" class="w-full h-auto">
+            <img src="/static/images/explore_new_ideas.png" alt="Explore New Ideas" class="w-full h-auto">
         </div>
     
         <section class="w-full py-6 px-4">

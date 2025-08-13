@@ -57,11 +57,6 @@ def central_route(data):
     if data == "page_updater":
         return render_template("admin_pages/page_updater.html")
     
-
-
-
-
-
     
     if data == "get_blog_list":
         search_keyword = request.args.get("search_keyword")
@@ -69,13 +64,6 @@ def central_route(data):
             search_keyword=search_keyword, page=1, per_page=1000
         )
         return jsonify({"status": "success", "blogs": list_of_blogs})
-    
-    if data == "get_main_pages":
-        search_keyword = request.args.get("search_keyword")
-        list_of_pages, _ = get_main_pages_db(
-            search_keyword=search_keyword, page=1, per_page=1000
-        )
-        return jsonify({"status": "success", "pages": list_of_pages})
     
     if data == "get_paginated_business_cards":
         try:
