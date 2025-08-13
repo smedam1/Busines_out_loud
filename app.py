@@ -57,11 +57,6 @@ def central_route(data):
     if data == "page_updater":
         return render_template("admin_pages/page_updater.html")
     
-
-
-
-
-
     
     if data == "get_blog_list":
         search_keyword = request.args.get("search_keyword")
@@ -69,13 +64,6 @@ def central_route(data):
             search_keyword=search_keyword, page=1, per_page=1000
         )
         return jsonify({"status": "success", "blogs": list_of_blogs})
-    
-    if data == "get_main_pages":
-        search_keyword = request.args.get("search_keyword")
-        list_of_pages, _ = get_main_pages_db(
-            search_keyword=search_keyword, page=1, per_page=1000
-        )
-        return jsonify({"status": "success", "pages": list_of_pages})
     
     if data == "get_paginated_business_cards":
         try:
@@ -123,6 +111,12 @@ def central_route(data):
     # Handling Magazine Pages From Central Route
     if data == "magazine":
         return render_template("magazine_page/magazine_page.html")
+    
+    if data == "magazine_dev":
+        return get_magazine_home_page()
+        
+    
+
     if data == "advertise_with_us":
         header_content = get_header()
         footer_content = get_footer()
@@ -671,36 +665,38 @@ def delete_magazine():
         print(f"Server error in /delete_magazine: {str(e)}")
         return jsonify({"status": "error", "message": f"An internal server error occurred: {str(e)}"}), 500
 
-@app.route("/magazine/<magazine_id>")
-def magazine_page_read_only(magazine_id):
+
+@app.route("/magazine/<magazine_url>")
+def magazine_page_read_only(magazine_url):
     header_content = get_header()
     footer_content = get_footer()
-    data = get_magazine_details_db(magazine_id)
-    if not data:
+    if not magazine_url:
         return render_template("not_found/404.html"), 404
 
-    return render_template("magazine_page/magazine_page_read_only.html", header=header_content, footer=footer_content, pdf_url=data.get("pdf_url", ""), magazine_id=magazine_id)
+    return render_template("magazine_page/magazine_page_read_only.html", header=header_content, footer=footer_content, pdf_url=magazine_url)
 
+@app.route("/magazine_dev/<magazine_url>")
+def magazine_dev_page_read_only(magazine_url):
+    if not magazine_url:
+        return render_template("not_found/404.html"), 404
 
-@app.route("/flipbook/<magazine_id>")
+    return get_magazine_page()
+
+@app.route("/flipbook/<magazine_url>")
 @app.route("/flipbook")
-def magazine_page_flipbook_view(magazine_id=None):
-    if magazine_id is None:
-        magazine_id = request.args.get("magazine_id")
+def magazine_page_flipbook_view(magazine_url=None):
+    if magazine_url is None:
+        magazine_url = request.args.get("magazine_url")
 
-    if not magazine_id:
+    if not magazine_url:
         return render_template("not_found/404.html"), 404
     
     header_content = get_header()
     footer_content = get_footer()
-    print(f"Received request for magazine_id: {magazine_id}")
+    print(f"Received request for magazine_id: {magazine_url}")
     page_number = request.args.get("page_number", "1")
-    data = get_magazine_details_db(magazine_id)
 
-    if not data:
-        return render_template("not_found/404.html"), 404
-
-    return render_template("magazine_page/magazine_page_flipbook.html", header=header_content, footer=footer_content, pdf_url=data.get("pdf_url", ""), page_number=page_number)
+    return render_template("magazine_page/magazine_page_flipbook.html", header=header_content, footer=footer_content, pdf_url=magazine_url, page_number=page_number)
 
 # --------------------------------------------------------------------------------#
 #                            AD MANAGER Functionalities                           #
@@ -912,10 +908,6 @@ def main(t="ngrok"):
 
 if __name__ == "__main__":
     main(t="local")
-
-
-if __name__ == "__main__":
-    app.run(port=5000, debug=True)
 
 
 
