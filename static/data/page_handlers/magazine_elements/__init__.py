@@ -641,7 +641,6 @@ EMPTY_MAGAZINE_TEMPLATE= """<!DOCTYPE html>
   <body class="font-jakarta bg-white text-bol-black">
     <div class="flex flex-col w-full mx-auto bg-white overflow-x-hidden">
         [[placeholder]]
-
     <script src="https://cdn.jsdelivr.net/npm/page-flip/dist/js/page-flip.browser.min.js"></script>
     <script>
       (function () {
