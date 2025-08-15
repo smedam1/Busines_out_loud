@@ -41,10 +41,11 @@ def upload_file_to_storage(file, bucket_name):
         return {"status": "error", "message": error_message}
 
 
-def get_file_details_db(bucket_name):
+def get_file_details_db(bucket_name, user_id):
+    user_id = user_id if user_id is not None else "internal"
     if bucket_name == 'magazine-pdfs':
         try:
-            response = supabase.table("magazine_details").select("id, title, pdf_url, thumbnail_url").order("created_at", desc=True).execute()
+            response = supabase.table("magazine_details").select("id, title, pdf_url, thumbnail_url").eq("created_by", user_id).order("created_at", desc=True).execute()
             if response.data:
                 transformed_data = []
                 for row in response.data:

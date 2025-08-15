@@ -14,6 +14,7 @@
         body {
             background-color: #030303;
             color: white;
+            overflow: hidden;
         }
         .register-form-container {
             backdrop-filter: blur(20px);
@@ -358,13 +359,12 @@
         </script>
 </head>
 <body class="font-jakarta">
-    {{ header | safe }}
     <div class="flex flex-col items-center w-full max-w-[1440px] mx-auto bg-white overflow-x-hidden relative">
         
 
         <div class="w-full min-h-screen flex items-center justify-center bg-[#030303] py-12">
             <div class="relative z-10 w-full max-w-md mx-4">
-                <div class="register-form-container rounded-2xl p-8 shadow-2xl">
+                <div class="register-form-container rounded-2xl p-8 shadow-2xl mt-[-2rem]">
                     <div class="text-center mb-8">
                         <h1 class="text-3xl font-bold mb-2 bg-clip-text text-transparent bg-gradient-to-r from-white to-white/80">
                             Create Account
@@ -431,7 +431,6 @@
 
         
     </div>
-    {{ footer | safe }}
 
     <script>
         document.getElementById('register-form').addEventListener('submit', async function(e) {

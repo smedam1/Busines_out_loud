@@ -14,6 +14,8 @@
         body {
             background-color: #030303;
             color: white;
+            overflow: hidden;
+            zoom: 0.9;
         }
         .login-form-container {
             backdrop-filter: blur(20px);
@@ -353,7 +355,6 @@
         </script>
 </head>
 <body class="font-jakarta">
-    {{ header | safe }}
     <div class="flex flex-col items-center w-full max-w-[1440px] mx-auto bg-white overflow-x-hidden relative">
         
 
@@ -415,7 +416,6 @@
 
         
     </div>
-    {{ footer | safe }}
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
@@ -455,7 +455,8 @@
                         // Handle successful login
                         console.log('Login successful:', data);
                         // Cache user data
-                        localStorage.setItem('user', JSON.stringify(data.user));
+                        localStorage.setItem('BOLemail', email);
+                        localStorage.setItem('BOLpassword', password);
                         // Redirect to homepage or dashboard
                         window.location.href = '/';
                     } else {

@@ -1,4 +1,4 @@
-MAGAZINE_IFRAME_CONTENT = """<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
@@ -201,8 +201,7 @@ MAGAZINE_IFRAME_CONTENT = """<!DOCTYPE html>
             border-radius: 5px;
             z-index: 50; /* above canvas, inside page-content */
             min-width: 20px;
-            min-height: 10px;
-            max-height: 12px;
+            min-height: 14px;
         }
         .url-overlay:hover {
             background: rgba(0,123,255,0.6);
@@ -320,11 +319,11 @@ MAGAZINE_IFRAME_CONTENT = """<!DOCTYPE html>
         let totalPages = 0;
         let currentPage = 1; // 1-based
         let viewport = null; // Base (scale: 1) viewport for sizing/aspect
-let pagesCache = {}; // {pageNum: { baseViewport, links, lowCanvas, highCanvas }}
-let isFullscreen = false;
-let isDragging = false;
-let pageFlip = null;
-let hasBlankStart = !(window.innerWidth <= 768);
+        let pagesCache = {}; // {pageNum: { baseViewport, links, lowCanvas, highCanvas }}
+        let isFullscreen = false;
+        let isDragging = false;
+        let pageFlip = null;
+        let hasBlankStart = !(window.innerWidth <= 768);
 
         // Optional: CDN resources for fonts/cmaps if needed by some PDFs
         const PDFJS_VERSION = '3.11.174';
@@ -842,6 +841,13 @@ let hasBlankStart = !(window.innerWidth <= 768);
                     }, i * 30);
                 }
 
+                // If we have a leading blank and an even number of PDF pages,
+                // append a trailing blank to keep the last spread symmetrical (all soft pages).
+                if (hasBlankStart && (totalPages % 2 === 0)) {
+                    const trailingBlank = createBlankPageShell(dims);
+                    flipbook.appendChild(trailingBlank);
+                }
+
                 // Init PageFlip (cover + soft pages, first page soft)
                 pageFlip = new St.PageFlip(flipbook, {
                     width: Math.max(320, dims.width),
@@ -866,7 +872,7 @@ let hasBlankStart = !(window.innerWidth <= 768);
                 // Events
                 pageFlip.on('flip', (e) => {
                     const idx = (e.data || 0);
-                    currentPage = hasBlankStart ? Math.max(1, idx) : idx + 1;
+                    currentPage = hasBlankStart ? Math.min(totalPages, Math.max(1, idx)) : Math.min(totalPages, idx + 1);
                     updateControls();
                     if (window.parent !== window) {
                         window.parent.postMessage({
@@ -957,119 +963,3 @@ let hasBlankStart = !(window.innerWidth <= 768);
     </script>
 </body>
 </html>
-"""
-
-script_html = """
-            <script>
-            (function () {
-                var iframeEl = document.getElementById('my-flipbook-container');
-                function triggerDownload(url, filename) {
-                try {
-                    var safeName = filename || (url ? url.split('/').pop() : 'document.pdf') || 'document.pdf';
-                    var proxiedUrl = window.location.origin + "/download_proxy?pdf=" + encodeURIComponent(url) + "&filename=" + encodeURIComponent(safeName);
-                    var a = document.createElement('a');
-                    a.href = proxiedUrl;
-                    a.download = safeName;
-                    a.style.display = 'none';
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                } catch (err) {
-                    console.error('Parent download error:', err);
-                }
-                }
-                window.addEventListener('message', function (event) {
-                try {
-                    if (!iframeEl || event.source !== iframeEl.contentWindow) return;
-                    var data = event.data || {};
-                    var type = data.type || data.action;
-                    if (type === 'download' || type === 'downloadResponse') {
-                    triggerDownload(data.pdfUrl, data.filename);
-                    }
-                } catch (e) {
-                    console.error('Parent message handler error:', e);
-                }
-                });
-            })();
-            </script>
-"""
-
-
-def get_iframe(
-        pdf_url: str = "https://iwyjssxhrcucnrkzkvmt.supabase.co/storage/v1/object/public/magazine-pdfs/CXO%20TechBOT%20October%202024-1-25.pdf",
-        raw_html: bool = False
-) -> str:
-    pdf_injection = f"""
-    <script>
-        // Injected PDF URL for srcdoc usage
-        const INJECTED_PDF_URL = '{pdf_url}';
-    </script>
-    """
-    # Insert the PDF injection right before the main script tag
-    raw_html = MAGAZINE_IFRAME_CONTENT.replace('<script>', pdf_injection + '<script>', 1)
-
-    if raw_html:
-        return raw_html
-    
-    # Properly escape HTML for srcdoc attribute (escape single quotes and HTML entities)
-    escaped_html = raw_html.replace('&', '&amp;').replace("'", '&#39;').replace('"', '&quot;')
-
-    iframe = f"""<iframe
-                id="my-flipbook-container"
-                class="w-full h-[36rem] max-w-[52rem]"
-                allow="clipboard-write"
-                sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads"
-                allowfullscreen="true"
-                style="border:none;overflow:hidden;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);border:1px solid #e5e7eb;background-color:#000;min-height:500px;"
-                srcdoc='{escaped_html}'
-              ></iframe>"""
-    
-    return iframe + "\n\n" + script_html
-
-
-def get_magazine_hero_section(
-        pdf_url: str = "https://iwyjssxhrcucnrkzkvmt.supabase.co/storage/v1/object/public/magazine-pdfs/CXO%20TechBOT%20October%202024-1-25.pdf"
-) -> str:
-    
-    before_html = """
-      <!-- Magazine Flipbook Section with Side Ads -->
-      <section class="w-full mx-auto px-2 sm:px-4 py-8">
-        <div class="grid grid-cols-1 lg:grid-cols-5 gap-4 lg:gap-8">
-
-          <!-- Left Ad Section -->
-          <aside class="ad-column col-span-1 hidden lg:flex flex-col items-center pt-[40px]">
-            <div class="w-full h-[600px] bg-gray-100 rounded-lg shadow-lg overflow-hidden sticky top-[40px]">
-              <img
-                src="https://picsum.photos/1200/236"
-                alt="Advertisement Left"
-                class="w-full h-full object-cover"
-              />
-            </div>
-          </aside>
-
-          
-          <!-- Middle Flipbook Section -->
-          <div class="col-span-1 lg:col-span-3 mt-[16]">
-            <div class="w-full max-w-[52rem] mx-auto flex items-center justify-center min-h-[28rem] mt-[3rem]">
-    """
-
-    after_html = """
-            </div>
-          </div>
-          <!-- End of Middle Flipbook Section -->
-
-          <!-- Right Ad Section -->
-          <aside class="ad-column col-span-1 hidden lg:flex flex-col items-center pt-[40px]">
-            <div class="w-full h-[600px] bg-gray-100 rounded-lg shadow-lg overflow-hidden sticky top-[40px]">
-              <img
-                src="https://picsum.photos/1200/236"
-                alt="Advertisement Right"
-                class="w-full h-full object-cover"
-              />
-            </div>
-          </aside>
-
-        </div>
-      </section>
-    """
-    return before_html + get_iframe(pdf_url) + after_html
