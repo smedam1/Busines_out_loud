@@ -234,6 +234,112 @@ def update_blogs_to_db(blog_data):
     if not blog_id:
         return {"status": "error", "message": "Blog ID is required for update."}
 
+    # Prepare update data similar to save_blogs_to_db
+    modified_data = {}
+    modified_data["id"] = blog_data.get("blogTitle", "").replace(" ", "_").lower()
+    modified_data["created_by"] = blog_data.get("admin_name", "")
+    modified_data["status"] = blog_data.get("status", "draft")
+
+    # Extract category and SEO information
+    modified_data["category"] = blog_data.get("blogCategory", "")
+    # Sub-category commented out as requested
+    # modified_data['sub_category'] = blog_data.get('blogSubCategory', '')
+    
+    # Extract and store labels in JSON format
+    labels_data = blog_data.get("labels", {})
+    modified_data["labels"] = labels_data if isinstance(labels_data, dict) else {}
+
+    # Generate meta tags from SEO data
+    seo_title = blog_data.get("seoTitle", "") or blog_data.get("blogTitle", "")
+    seo_description = blog_data.get("seoMetaDescription", "") or blog_data.get(
+        "blogSummary", ""
+    )
+    seo_canonical = (
+        blog_data.get("seoCanonicalUrl", "")
+        or f"{blog_data.get('base_url', '')}/blog/{modified_data['id']}"
+    )
+
+    # Create meta tags HTML
+    meta_tags = f"""<title>{seo_title}</title>
+    <meta name="description" content="{seo_description}">
+    <meta property="og:title" content="{seo_title}">
+    <meta property="og:description" content="{seo_description}">
+    <meta property="og:image" content="{blog_data.get('mainImageUrl', '')}">
+    <meta property="og:url" content="{seo_canonical}">
+    <meta property="og:type" content="article">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{seo_title}">
+    <meta name="twitter:description" content="{seo_description}">
+    <meta name="twitter:image" content="{blog_data.get('mainImageUrl', '')}">
+    <link rel="canonical" href="{seo_canonical}">"""
+
+    modified_data["meta_tags"] = meta_tags
+
+    # Store the base_url before cleaning up
+    base_url = blog_data.get("base_url", "")
+
+    # Clean up fields before storing in json_data
+    fields_to_remove = [
+        "admin_name",
+        "status",
+        "enc_email",
+        "enc_pwd",
+        "base_url",
+        "blog_id",
+        "reason",
+        "labels",
+    ]
+    for field in fields_to_remove:
+        if field in blog_data:
+            del blog_data[field]
+
+    # Store the complete blog data
+    modified_data["json_data"] = blog_data
+
+    # Get existing blog history and append to it
+    existing_blog = get_blog(blog_id)
+    if existing_blog and "history" in existing_blog:
+        modified_data["history"] = existing_blog["history"]
+        modified_data["history"].append(
+            {
+                "admin_name": modified_data["created_by"],
+                "date": blog_data.get("blogDate", ""),
+                "action": "updated",
+            }
+        )
+    else:
+        modified_data["history"] = [
+            {
+                "admin_name": modified_data["created_by"],
+                "date": blog_data.get("blogDate", ""),
+                "action": "updated",
+            }
+        ]
+
+    try:
+        # Update the existing blog
+        response = (
+            supabase.table("blogs").update(modified_data).eq("id", blog_id).execute()
+        )
+
+        if response.data:
+            response.data[0]["url"] = f"{base_url}/blog/{modified_data['id']}"
+            return {
+                "status": "success",
+                "message": "Blog updated successfully.",
+                "data": response.data[0],
+            }
+        else:
+            return {
+                "status": "error",
+                "message": "Blog not found or could not be updated.",
+            }
+
+    except Exception as e:
+        print(f"Error updating blog: {e}")
+        return {"status": "error", "message": str(e)}
+
+
 
 def delete_blog_from_db(blog_id, redirect_url=None):
     print(f"Marking blog as deleted with ID: {blog_id}")

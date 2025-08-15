@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, redirect
+from flask import Flask, render_template, request, jsonify, redirect, Response
 from static.data.page_handler import *
 
 from pyngrok import ngrok
@@ -8,6 +8,7 @@ import time
 from dotenv import load_dotenv
 import json
 import re
+import requests
 
 from static.data.page_handler import *
 from static.data.page_editor import *
@@ -44,10 +45,7 @@ def central_route(data):
             return render_template("not_found/404.html"), 404
         else:
             return res
-
-
-
-
+        
 
     # Handling Admin Pages From Central Route
     if data == "admin_login":
@@ -76,19 +74,22 @@ def central_route(data):
         return jsonify(data)
     
 
-
+    if data == "upload_new_magazine":
+        return upload_new_magazine()
 
 
     # Handling Upload Pages From Central Route
     if data == "manage_files":
         return render_template("admin_pages/manage_files.html")
+    
     if data == "get_file_details":
         data = request.args
         print(f"Received data for get_file_details: {json.dumps(data, indent=2, ensure_ascii=False)}")
         bucket_name = data.get("bucket_name", None)
+        user_id = data.get("user_id", None)
         if not bucket_name:
             return jsonify({"status": "error", "message": "Bucket name is required"}), 400
-        file_details = get_file_details_db(bucket_name)
+        file_details = get_file_details_db(bucket_name, user_id)
         if file_details["status"] == "error":
             return (
                 jsonify(
@@ -104,17 +105,19 @@ def central_route(data):
         return jsonify({"status": "success", "data": file_details.get("data", [])}), 200
 
 
-
+    if data == "get_main_pages":
+        search_keyword = request.args.get("search_keyword")
+        list_of_pages, _ = get_main_pages_db(
+            search_keyword=search_keyword, page=1, per_page=1000
+        )
+        print(f"Retrieved main pages: {list_of_pages}")
+        return jsonify({"status": "success", "pages": list_of_pages})
 
 
 
     # Handling Magazine Pages From Central Route
     if data == "magazine":
-        return render_template("magazine_page/magazine_page.html")
-    
-    if data == "magazine_dev":
-        return get_magazine_home_page()
-        
+        return get_magazine_home_page()        
     
 
     if data == "advertise_with_us":
@@ -147,15 +150,11 @@ def index():
 
 @app.route("/login")
 def login():
-    header_content = get_header()
-    footer_content = get_footer()
-    return render_template("user_pages/login.html", header=header_content, footer=footer_content)
+    return render_template("user_pages/login.html")
 
 @app.route("/register")
 def register():
-    header_content = get_header()
-    footer_content = get_footer()
-    return render_template("user_pages/register.html", header=header_content, footer=footer_content)
+    return render_template("user_pages/register.html")
 
 @app.route("/user_register", methods=["POST"])
 def user_register():
@@ -350,12 +349,13 @@ def admin_save_blog():
         )
 
     data["admin_name"] = verification_status["name"]
-
+    print(data.get("reason", "insert"))
     if data.get("reason", "insert") == "insert":
         result = save_blogs_to_db(data)
+        print(f"Result of inserting blog: {result}")
     else:
         result = update_blogs_to_db(data)
-
+        print(f"Result of updating blog: {result}")
     if result.get("status") == "error":
         return jsonify({"status": "error", "message": result.get("message")}), 400
 
@@ -573,7 +573,6 @@ def upload_file():
 
 
 
-
 @app.route("/delete_file", methods=["POST"])
 def delete_file():
     data = request.json
@@ -622,8 +621,11 @@ def create_magazine():
         title = request.form['title']
         pdf_file = request.files['pdf_file']
         thumbnail_file = request.files.get('thumbnail_file') # Optional
+        created_by = request.form.get('created_by', None)
 
-        result = create_magazine_db(title=title, pdf_file=pdf_file, thumbnail_file=thumbnail_file)
+        print(f"Creating magazine with title: {title}, created_by: {created_by}")
+
+        result = create_magazine_db(title=title, pdf_file=pdf_file, thumbnail_file=thumbnail_file, created_by=created_by)
 
         if result.get("status") == "success":
             return jsonify({
@@ -667,20 +669,15 @@ def delete_magazine():
 
 
 @app.route("/magazine/<magazine_url>")
-def magazine_page_read_only(magazine_url):
-    header_content = get_header()
-    footer_content = get_footer()
-    if not magazine_url:
-        return render_template("not_found/404.html"), 404
-
-    return render_template("magazine_page/magazine_page_read_only.html", header=header_content, footer=footer_content, pdf_url=magazine_url)
-
-@app.route("/magazine_dev/<magazine_url>")
 def magazine_dev_page_read_only(magazine_url):
     if not magazine_url:
         return render_template("not_found/404.html"), 404
+    
+    magazine_url = "https://iwyjssxhrcucnrkzkvmt.supabase.co/storage/v1/object/public/magazine-pdfs/" + magazine_url
 
-    return get_magazine_page()
+    print(f"Received request for magazine_url: {magazine_url}")
+
+    return get_magazine_page(magazine_url)
 
 @app.route("/flipbook/<magazine_url>")
 @app.route("/flipbook")
@@ -691,12 +688,39 @@ def magazine_page_flipbook_view(magazine_url=None):
     if not magazine_url:
         return render_template("not_found/404.html"), 404
     
-    header_content = get_header()
-    footer_content = get_footer()
-    print(f"Received request for magazine_id: {magazine_url}")
-    page_number = request.args.get("page_number", "1")
+    magazine_url = "https://iwyjssxhrcucnrkzkvmt.supabase.co/storage/v1/object/public/magazine-pdfs/" + magazine_url
 
-    return render_template("magazine_page/magazine_page_flipbook.html", header=header_content, footer=footer_content, pdf_url=magazine_url, page_number=page_number)
+    return get_raw_html(magazine_url)
+
+@app.route("/download_proxy")
+def download_proxy():
+    url = request.args.get("pdf") or request.args.get("url")
+    filename = request.args.get("filename") or (url.split("/")[-1] if url else "document.pdf")
+    if not url:
+        return jsonify({"status": "error", "message": "Missing pdf parameter"}), 400
+    try:
+        r = requests.get(url, stream=True, timeout=30)
+        r.raise_for_status()
+
+        def generate():
+            for chunk in r.iter_content(chunk_size=8192):
+                if chunk:
+                    yield chunk
+
+        headers = {
+            "Content-Type": r.headers.get("Content-Type", "application/pdf"),
+            "Content-Disposition": f'attachment; filename="{filename}"'
+        }
+        return Response(generate(), headers=headers)
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 502
+
+@app.route("/get_iframe/<path:url>", methods=["GET"])
+def get_iframe(url):
+    print(f"Received request for get_iframe with URL: {url}")
+    if not url:
+        return render_template("not_found/404.html"), 404
+    return get_raw_html(url)
 
 # --------------------------------------------------------------------------------#
 #                            AD MANAGER Functionalities                           #
@@ -770,7 +794,7 @@ def add_ad_post():
         org_id = int(data['organization_id'])
         
         # Fetch organization name
-        org_details_response = supabase.table("organization").select("organization").eq("id", org_id).single().execute()
+        org_details_response = get_orgs_db(org_id)
         
         if org_details_response.data:
             data['organization'] = org_details_response.data['organization']
@@ -837,7 +861,7 @@ def delete_ad(ad_id):
 
 @app.route("/trial")
 def trial():
-    return render_template("trial.html")
+    return render_template("magazine_page/flipbook_iframe_4.html")
 
 @app.route("/blog_trial/<blog_id>")
 def blog_trial(blog_id):
@@ -903,7 +927,7 @@ def main(t="ngrok"):
         print("Public URL:", ngrok_tunnel.public_url)
         app.run()
     else:
-        app.run(port=5000, debug=True, use_reloader=True)
+        app.run(host="0.0.0.0", port=5000, debug=True, use_reloader=True)
 
 
 if __name__ == "__main__":

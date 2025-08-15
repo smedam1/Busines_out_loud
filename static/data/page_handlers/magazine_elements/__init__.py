@@ -1,7 +1,7 @@
 
 from .hero_section import get_magazine_homepage_hero_section
 from .more_magazines import get_more_magazines
-from .magazine_page_hero_section import get_magazine_hero_section
+from .magazine_page_hero_section import get_magazine_hero_section, get_raw_html
 
 EMPTY_MAGAZINE_TEMPLATE= """<!DOCTYPE html>
 <html lang="en">
@@ -1726,7 +1726,7 @@ EMPTY_MAGAZINE_TEMPLATE= """<!DOCTYPE html>
         }
 
 
-        // Download Functionality
+        // Download Functionality (proxied through same-origin to avoid Edge blocking)
         function initializeDownloadButton() {
           const downloadBtn = document.getElementById("download-btn");
           
@@ -1750,23 +1750,25 @@ EMPTY_MAGAZINE_TEMPLATE= """<!DOCTYPE html>
             try {
               var pdfUrl = "[[pdf_url]]";
               pdfUrl = pdfUrl.replace('-', '/');
+              const filename = pdfUrl.substring(pdfUrl.lastIndexOf('/') + 1) || "document.pdf";
+              
+              // Proxy via same-origin endpoint to avoid client/extension blocking of external domain
+              const proxiedUrl = `${window.location.origin}/download_proxy?pdf=${encodeURIComponent(pdfUrl)}&filename=${encodeURIComponent(filename)}`;
+              
               const link = document.createElement('a');
-              link.href = pdfUrl;
-              const filename = pdfUrl.substring(pdfUrl.lastIndexOf('/') + 1) || "download.pdf";
+              link.href = proxiedUrl;
               link.download = filename; 
               link.style.display = 'none'; 
               
               document.body.appendChild(link);
               link.click();
               document.body.removeChild(link);
-              
-              setTimeout(() => {
-                isDownloading = false;
-              }, 1000);
-              
             } catch (error) {
               console.error("Error downloading PDF:", error);
-              isDownloading = false; 
+            } finally {
+              setTimeout(() => {
+                isDownloading = false;
+              }, 500);
             }
           });
         }
@@ -1775,3 +1777,751 @@ EMPTY_MAGAZINE_TEMPLATE= """<!DOCTYPE html>
     </script>
   </body>
 </html>"""
+
+def UPLOAD_NEW_MAGAZINE_TEMPLATE():
+    return """
+    <style>
+        /* Keep scrollbar hidden as in homepage */
+        ::-webkit-scrollbar { display: none; }
+        body {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        @keyframes slideDown {
+            from { transform: translateY(-10px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        .slide-down { animation: slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+        :root {
+            --clr-dark-black: #121212;
+            --clr-bdr-gray: #2a2a2a;
+            --clr-white: #fff;
+            --clr-primary: #9747FF;
+            --clr-primary-bol: #3533CD;
+        }
+
+        /* Page-specific (light theme to match homepage) */
+        .section-card {
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+        }
+        .section-title {
+            font-family: "Plus Jakarta Sans", sans-serif;
+            font-weight: 700;
+            color: #0D0D0D;
+        }
+
+        /* Form elements (light) */
+        .form-label {
+            display: block;
+            margin-bottom: 0.375rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #374151;
+        }
+        .form-input {
+            width: 100%;
+            background-color: #F9FAFB;
+            border: 1px solid #E5E7EB;
+            border-radius: 10px;
+            padding: 0.75rem 0.875rem;
+            color: #0D0D0D;
+            transition: all 0.2s ease;
+        }
+        .form-input:focus {
+            outline: none;
+            border-color: #3533CD;
+            box-shadow: 0 0 0 3px rgba(53, 51, 205, 0.15);
+            background-color: #ffffff;
+        }
+
+        .file-input-display {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 170px;
+            width: 100%;
+            background-color: #F9FAFB;
+            border: 2px dashed #E5E7EB;
+            border-radius: 12px;
+            padding: 1.25rem;
+            color: #6B7280;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .file-input-display:hover {
+            border-color: #D1D5DB;
+            background-color: #FFFFFF;
+        }
+        .file-input-display.dragover {
+            border-color: #3533CD;
+            background-color: #EEF2FF;
+            transform: scale(1.01);
+        }
+        .file-input-placeholder { color: #9CA3AF; }
+
+        .form-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.75rem 1.25rem;
+            border: none;
+            border-radius: 9999px;
+            background-color: #3533CD;
+            color: white;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+        }
+        .form-button:hover:not(:disabled) { background-color: #2a2ab0; transform: translateY(-1px); }
+        .form-button:disabled { background-color: #a7a7e6; cursor: not-allowed; }
+
+        /* Gallery */
+        .gallery-item {
+            position: relative;
+            overflow: hidden;
+            border-radius: 12px;
+            transition: all 0.2s ease;
+            background-color: #F9FAFB;
+            border: 1px solid #E5E7EB;
+        }
+        .gallery-item:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+        }
+        .gallery-item .actions {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            display: flex;
+            gap: 0.375rem;
+            opacity: 0;
+            transform: translateY(-8px);
+            transition: all 0.25s ease;
+            z-index: 10;
+            pointer-events: auto;
+        }
+        .gallery-item:hover .actions {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .gallery-item .actions button {
+            border-radius: 9999px;
+            padding: 0.4rem;
+            background-color: rgba(0,0,0,0.5);
+            transition: background-color 0.2s;
+        }
+        .gallery-item .actions button:hover {
+            background-color: rgba(0,0,0,0.7);
+        }
+
+        /* Search input underline hover */
+        .search-input-container { position: relative; }
+        .search-input-container::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            width: 0;
+            height: 1px;
+            background-color: rgba(17, 24, 39, 0.6);
+            transform: translateX(-50%);
+            transition: width 0.25s ease-in-out;
+        }
+        .search-input-container:hover::after,
+        .search-input-container.focused::after { width: 100%; }
+        .search-input {
+            background-color: transparent;
+            border: none;
+            color: #111827;
+        }
+        .search-input::placeholder { color: #9CA3AF; }
+        .search-input:focus { outline: none; }
+
+        /* Delete modal */
+        .delete-modal {
+            position: fixed; inset: 0;
+            background-color: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 1000; opacity: 0; visibility: hidden;
+            transition: all 0.25s ease;
+        }
+        .delete-modal.show { opacity: 1; visibility: visible; }
+        .delete-modal-content {
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 14px;
+            padding: 1.5rem;
+            max-width: 520px; width: 90%;
+            text-align: center;
+            transform: scale(0.96) translateY(8px);
+            transition: all 0.25s ease;
+        }
+        .delete-modal.show .delete-modal-content { transform: scale(1) translateY(0); }
+        .delete-modal-icon {
+            width: 58px; height: 58px; margin: 0 auto 1rem;
+            background: #FEF2F2; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .delete-modal-title {
+            font-size: 1.15rem; font-weight: 700; color: #111827; margin-bottom: 0.35rem;
+        }
+        .delete-modal-message { color: #4B5563; margin-bottom: 1.25rem; line-height: 1.55; }
+        .delete-modal-actions { display: flex; gap: 0.75rem; justify-content: center; }
+        .delete-modal-btn {
+            padding: 0.65rem 1.25rem; border-radius: 10px; border: none; font-weight: 600;
+            cursor: pointer; transition: all 0.2s ease; min-width: 100px;
+        }
+        .delete-modal-btn-cancel { background: #F3F4F6; color: #111827; }
+        .delete-modal-btn-cancel:hover { background: #E5E7EB; }
+        .delete-modal-btn-delete { background: #EF4444; color: white; }
+        .delete-modal-btn-delete:hover { background: #DC2626; }
+
+        /* Header styles (copied essentials from homepage) */
+        .mobile-menu-item { padding: 0.875rem 1rem; background: #121212; border-bottom: solid 1px #2a2a2a; color: #fff; display: flex; align-items: center; justify-content: space-between; transition: background-color 0.2s ease; }
+        .mobile-menu-item:hover { background-color: #1a1a1a; }
+        .item-title { flex-grow: 1; margin-left: 0.75rem; font-weight: 500; }
+        .hamburger-line { transition: all 0.3s ease; }
+        .hamburger-active .hamburger-line:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+        .hamburger-active .hamburger-line:nth-child(2) { opacity: 0; }
+        .hamburger-active .hamburger-line:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+    </style>
+    <!-- MAIN CONTENT -->
+    <!-- MAIN CONTENT -->
+    <main class="w-full px-4 md:px-8 py-8 md:py-10">
+        <div class="max-w-7xl mx-auto">
+            <!-- Page heading -->
+            <div class="mb-6 md:mb-8">
+                <div class="relative inline-block">
+                    <h1 class="section-title text-2xl md:text-3xl">Upload Magazine</h1>
+                    <div class="absolute h-1 w-20 bg-[#3533CD] bottom-[-8px] left-0"></div>
+                </div>
+            </div>
+
+            <!-- Upload Card -->
+            <section class="section-card p-5 md:p-8 mb-10">
+                <form id="magazineForm" class="space-y-6">
+                    <!-- Magazine Name -->
+                    <div>
+                        <label for="magazineTitle" class="form-label">Magazine Name</label>
+                        <input type="text" id="magazineTitle" name="title" class="form-input" placeholder="eg. BOL Magazine - July issue etc." required>
+                    </div>
+
+                    <!-- PDF and Thumbnail -->
+                    <div class="flex flex-col md:flex-row gap-4 md:gap-6">
+                        <!-- PDF -->
+                        <div class="flex-1">
+                            <label for="magazinePdf" class="form-label">Magazine PDF</label>
+                            <div id="pdf-dropzone" class="file-input-display">
+                                <span id="pdf-filename" class="file-input-placeholder truncate pr-4">Click or drop PDF here</span>
+                                <i data-lucide="file-text" class="w-5 h-5 opacity-60"></i>
+                            </div>
+                            <input type="file" id="magazinePdf" name="pdf_file" class="hidden" accept="application/pdf" required>
+                        </div>
+                        <!-- Thumbnail -->
+                        <div class="flex-1">
+                            <label for="magazineThumbnail" class="form-label">Magazine Thumbnail (Optional)</label>
+                            <div id="thumbnail-dropzone" class="file-input-display">
+                                <span id="thumbnail-filename" class="file-input-placeholder truncate pr-4">Click or drop image here</span>
+                                <i data-lucide="image" class="w-5 h-5 opacity-60"></i>
+                            </div>
+                            <input type="file" id="magazineThumbnail" name="thumbnail_file" class="hidden" accept="image/jpeg, image/png, image/webp">
+                        </div>
+                    </div>
+
+                    <!-- Save Button -->
+                    <div class="pt-2">
+                        <button id="saveMagazineBtn" type="submit" class="form-button" disabled>
+                            <i data-lucide="upload" class="w-4 h-4 mr-2"></i>
+                            <span id="saveMagazineBtnText">Save Magazine</span>
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <!-- Gallery Heading -->
+            <div class="mb-4 md:mb-6 flex items-end justify-between gap-4">
+                <div class="relative inline-block">
+                    <h2 class="section-title text-xl md:text-2xl">Magazine Gallery</h2>
+                    <div class="absolute h-1 w-16 bg-[#3533CD] bottom-[-6px] left-0"></div>
+                </div>
+                <div class="relative w-full sm:w-auto sm:flex-1 max-w-xs">
+                    <div class="search-input-container">
+                        <i data-lucide="search" class="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 z-10"></i>
+                        <input type="text" placeholder="Search magazines..." class="search-input w-full py-2 pl-11 pr-4 text-sm rounded-full border border-gray-200 focus:ring-0 focus:outline-none transition" id="searchInput">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Gallery Grid -->
+            <section>
+                <div id="galleryGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4"></div>
+                <div id="no-gallery-items" class="text-center py-16 hidden">
+                    <i data-lucide="folder-x" class="w-16 h-16 mx-auto text-gray-300 mb-4"></i>
+                    <h3 class="text-xl font-medium text-gray-800">No Magazines Found</h3>
+                    <p class="text-gray-500 mt-2">Try uploading a new magazine.</p>
+                </div>
+            </section>
+        </div>
+    </main>
+    <!-- Delete Confirmation Modal (unchanged endpoints/ids) -->
+    <div id="deleteModal" class="delete-modal">
+        <div class="delete-modal-content">
+            <div class="delete-modal-icon">
+                <i data-lucide="trash-2" class="w-8 h-8 text-red-500"></i>
+            </div>
+            <h3 class="delete-modal-title">Delete Magazine</h3>
+            <p class="delete-modal-message" id="deleteModalMessage">
+                Are you sure you want to delete this magazine? This action cannot be undone.
+            </p>
+            <div class="delete-modal-actions">
+                <button class="delete-modal-btn delete-modal-btn-cancel" id="deleteModalCancel">Cancel</button>
+                <button class="delete-modal-btn delete-modal-btn-delete" id="deleteModalConfirm">Delete</button>
+            </div>
+        </div>
+    </div>
+    <script>
+    let magazineData = [];
+    let isLoadingFiles = false;
+    const BUCKET_MAPPING = { 'pdf': 'magazine-pdfs' };
+
+    async function fetchMagazines() {
+        const bucketName = BUCKET_MAPPING['pdf'];
+        if (!bucketName) {
+            console.error('No bucket mapping found for file type: pdf');
+            return [];
+        }
+        try {
+            const response = await fetch(`/get_file_details?bucket_name=${encodeURIComponent(bucketName)}&user_id=${encodeURIComponent(localStorage.getItem('BOLemail'))}`);
+            const result = await response.json();
+            if (result.status === 'success' && result.data) {
+                const transformedData = result.data.map(file => ({
+                    id: file.id,
+                    name: file.name,
+                    url: file.public_url,
+                    thumbnail_url: file.thumbnail_url,
+                }));
+                return transformedData;
+            } else {
+                console.error('Failed to fetch magazines:', result.message || 'Unknown error');
+                return [];
+            }
+        } catch (error) {
+            console.error('Error fetching magazines:', error);
+            return [];
+        }
+    }
+
+    async function loadAllFiles() {
+        if (isLoadingFiles) return;
+        isLoadingFiles = true;
+        try {
+            magazineData = await fetchMagazines();
+            renderGallery();
+        } catch (error) {
+            console.error('Error loading files:', error);
+            showToast('Failed to load files from server', 'error');
+        } finally {
+            isLoadingFiles = false;
+        }
+    }
+
+    function truncate(str, len) {
+        return str.length > len ? str.substring(0, len) + "..." : str;
+    }
+
+    function renderGallery() {
+        const searchInput = document.getElementById('searchInput');
+        const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
+        renderGalleryWithSearch(searchTerm);
+    }
+
+    function renderGalleryWithSearch(searchTerm = '') {
+        const galleryGrid = document.getElementById('galleryGrid');
+        if (!galleryGrid) return;
+
+        let filteredMedia = magazineData;
+        if (searchTerm) {
+            filteredMedia = magazineData.filter(item =>
+                item.name.toLowerCase().includes(searchTerm)
+            );
+        }
+
+        galleryGrid.innerHTML = '';
+        if (filteredMedia.length === 0) {
+            document.getElementById('no-gallery-items').classList.remove('hidden');
+            galleryGrid.classList.add('hidden');
+        } else {
+            document.getElementById('no-gallery-items').classList.add('hidden');
+            galleryGrid.classList.remove('hidden');
+            filteredMedia.forEach(item => {
+                const itemEl = document.createElement('div');
+                itemEl.className = 'gallery-item group aspect-[4/5] flex flex-col justify-between text-center overflow-hidden';
+
+                const truncatedName = truncate(item.name, 25);
+
+                let thumbnailHTML;
+                if (item.thumbnail_url) {
+                    thumbnailHTML = `<div class="flex-grow w-full bg-white flex items-center justify-center overflow-hidden"><img src="${item.thumbnail_url}" alt="${item.name}" class="w-full h-full object-cover"></div>`;
+                } else {
+                    thumbnailHTML = `<div class="flex-grow w-full flex flex-col justify-center items-center bg-white">
+                        <i data-lucide="file-text" class="w-16 h-16 text-gray-300"></i>
+                    </div>`;
+                }
+
+                const content = `
+                    ${thumbnailHTML}
+                    <div class="w-full p-2 bg-white">
+                        <p class="text-sm font-semibold text-gray-800" title="${item.name}">${truncatedName}</p>
+                    </div>
+                `;
+
+                itemEl.innerHTML = content + `
+                    <div class="actions">
+                        <button class="action-btn" data-action="view" data-id="${item.id}" data-url="${item.url}" title="View"><i data-lucide="external-link" class="w-4 h-4 text-white"></i></button>
+                        <button class="action-btn" data-action="download" data-id="${item.id}" data-url="${item.url}" data-name="${item.name}" title="Download"><i data-lucide="download" class="w-4 h-4 text-white"></i></button>
+                        <button class="action-btn" data-action="copy" data-id="${item.id}" data-url="${item.url}" title="Copy URL"><i data-lucide="copy" class="w-4 h-4 text-white"></i></button>
+                        <button class="action-btn delete" data-action="delete" data-id="${item.id}" data-name="${item.name}" title="Delete"><i data-lucide="trash" class="w-4 h-4 text-white"></i></button>
+                    </div>
+                `;
+                galleryGrid.appendChild(itemEl);
+            });
+        }
+        lucide.createIcons();
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // Auth check functionality
+        async function checkAuthentication() {
+            const email = localStorage.getItem('BOLemail');
+            const password = localStorage.getItem('BOLpassword');
+            
+            if (!email || !password) {
+                showAuthModal();
+                return false;
+            }
+            
+            try {
+                const response = await fetch('/user_auth', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.status === 'success') {
+                    return true;
+                } else {
+                    localStorage.removeItem('BOLemail');
+                    localStorage.removeItem('BOLpassword');
+                    showAuthModal(result.message || 'Authentication failed');
+                    return false;
+                }
+            } catch (error) {
+                console.error('Auth check error:', error);
+                showAuthModal('Unable to verify authentication');
+                return false;
+            }
+        }
+
+        function showAuthModal(message = '') {
+            const modal = document.createElement('div');
+            modal.className = 'delete-modal show';
+            modal.style.zIndex = '9999';
+            
+            modal.innerHTML = `
+                <div class="delete-modal-content">
+                    <div class="delete-modal-icon">
+                        <i data-lucide="lock" class="w-6 h-6 text-red-600"></i>
+                    </div>
+                    <h3 class="delete-modal-title">Authentication Required</h3>
+                    <p class="delete-modal-message">
+                        ${message || 'You need to be logged in to access this page. Please log in to continue.'}
+                    </p>
+                    <div class="delete-modal-actions">
+                        <button class="delete-modal-btn delete-modal-btn-delete" onclick="window.location.href='/login'">
+                            Go to Login
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            // Prevent page interaction
+            document.body.style.overflow = 'hidden';
+            
+            // Create icons for the modal
+            lucide.createIcons();
+        }
+
+        // Load gallery on page load
+        loadAllFiles();
+
+        // Form logic (endpoints and fields unchanged)
+        const magazineForm = document.getElementById('magazineForm');
+        const saveMagazineBtn = document.getElementById('saveMagazineBtn');
+        const saveMagazineBtnText = document.getElementById('saveMagazineBtnText');
+        const titleInput = document.getElementById('magazineTitle');
+        const pdfInput = document.getElementById('magazinePdf');
+        const thumbnailInput = document.getElementById('magazineThumbnail');
+        const pdfDropzone = document.getElementById('pdf-dropzone');
+        const thumbnailDropzone = document.getElementById('thumbnail-dropzone');
+        const pdfFilenameSpan = document.getElementById('pdf-filename');
+        const thumbnailFilenameSpan = document.getElementById('thumbnail-filename');
+
+        function validateForm() {
+            const isTitleValid = titleInput.value.trim() !== '';
+            const isPdfSelected = pdfInput.files.length > 0;
+            saveMagazineBtn.disabled = !(isTitleValid && isPdfSelected);
+        }
+
+        titleInput.addEventListener('input', validateForm);
+        pdfInput.addEventListener('change', validateForm);
+
+        pdfDropzone.addEventListener('click', () => pdfInput.click());
+        thumbnailDropzone.addEventListener('click', () => thumbnailInput.click());
+
+        const setupDragDrop = (dropzone, input) => {
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropzone.addEventListener(eventName, e => { e.preventDefault(); e.stopPropagation(); });
+            });
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropzone.addEventListener(eventName, () => dropzone.classList.add('dragover'));
+            });
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropzone.addEventListener(eventName, () => dropzone.classList.remove('dragover'));
+            });
+            dropzone.addEventListener('drop', (e) => {
+                input.files = e.dataTransfer.files;
+                const event = new Event('change');
+                input.dispatchEvent(event);
+            });
+        };
+        setupDragDrop(pdfDropzone, pdfInput);
+        setupDragDrop(thumbnailDropzone, thumbnailInput);
+
+        pdfInput.addEventListener('change', () => {
+            if (pdfInput.files.length > 0) {
+                pdfFilenameSpan.textContent = pdfInput.files[0].name;
+                pdfFilenameSpan.classList.remove('file-input-placeholder');
+            } else {
+                pdfFilenameSpan.textContent = 'Click or drop PDF here';
+                pdfFilenameSpan.classList.add('file-input-placeholder');
+            }
+        });
+
+        thumbnailInput.addEventListener('change', () => {
+            if (thumbnailInput.files.length > 0) {
+                thumbnailFilenameSpan.textContent = thumbnailInput.files[0].name;
+                thumbnailFilenameSpan.classList.remove('file-input-placeholder');
+            } else {
+                thumbnailFilenameSpan.textContent = 'Click or drop image here';
+                thumbnailFilenameSpan.classList.add('file-input-placeholder');
+            }
+        });
+
+        magazineForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (saveMagazineBtn.disabled) return;
+
+            saveMagazineBtn.disabled = true;
+            saveMagazineBtnText.textContent = 'Saving...';
+
+            const formData = new FormData();
+            formData.append('title', titleInput.value);
+            formData.append('pdf_file', pdfInput.files[0]);
+            if (thumbnailInput.files.length > 0) {
+                formData.append('thumbnail_file', thumbnailInput.files[0]);
+            }
+            formData.append('created_by', localStorage.getItem('BOLemail'));
+
+            try {
+                const response = await fetch('/create_magazine', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+
+                if (response.ok && result.status === 'success') {
+                    showToast('Magazine saved successfully!', 'success');
+                    magazineForm.reset();
+                    pdfFilenameSpan.textContent = 'Click or drop PDF here';
+                    pdfFilenameSpan.classList.add('file-input-placeholder');
+                    thumbnailFilenameSpan.textContent = 'Click or drop image here';
+                    thumbnailFilenameSpan.classList.add('file-input-placeholder');
+                    validateForm();
+                    await loadAllFiles(); // Refresh gallery
+                } else {
+                    showToast(result.message || 'Failed to save magazine.', 'error');
+                }
+            } catch (error) {
+                showToast('An error occurred during upload.', 'error');
+                console.error('Upload error:', error);
+            } finally {
+                saveMagazineBtn.disabled = false;
+                saveMagazineBtnText.textContent = 'Save Magazine';
+                validateForm();
+            }
+        });
+
+        // Gallery actions
+        const galleryGrid = document.getElementById('galleryGrid');
+        galleryGrid.addEventListener('click', (e) => {
+            const actionBtn = e.target.closest('.action-btn');
+            if (!actionBtn) return;
+
+            const action = actionBtn.dataset.action;
+            const itemId = actionBtn.dataset.id;
+            const itemUrl = actionBtn.dataset.url;
+            const itemName = actionBtn.dataset.name;
+
+            switch(action) {
+                case 'view': handleViewAction(itemUrl, itemName); break;
+                case 'download': handleDownloadAction(itemUrl, itemName); break;
+                case 'copy': handleCopyAction(itemUrl); break;
+                case 'delete': handleDeleteAction(itemId, itemName); break;
+            }
+        });
+
+        function handleViewAction(url, name) {
+            if (url) window.open('/flipbook/'+ url.split('/').pop(), '_blank');
+        }
+
+        async function handleDownloadAction(url, name) {
+            if (!url) return;
+            showToast('Starting download...', 'success');
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const blob = await response.blob();
+                const downloadUrl = window.URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = downloadUrl;
+                link.download = name || 'download.pdf';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                window.URL.revokeObjectURL(downloadUrl);
+            } catch (error) {
+                console.error('Download failed, using fallback:', error);
+                const link = document.createElement('a');
+                link.href = url;
+                link.target = '_blank';
+                link.download = name || 'download.pdf';
+                link.click();
+            }
+        }
+
+        async function handleCopyAction(rawUrl) {
+            const endpoint = `/get_iframe/${encodeURIComponent(rawUrl.split('/').pop())}`;
+            const response = await fetch(endpoint, {
+            method: 'GET',
+            headers: { 'Accept': 'text/html, text/plain;q=0.9, */*;q=0.8' },
+            credentials: 'same-origin'
+            });
+
+            if (!response.ok) {
+            throw new Error(`Request failed with status ${response.status}`);
+            }
+
+            const text = await response.text();
+            navigator.clipboard.writeText(text).then(() => {
+                showToast('CODE copied to clipboard!');
+            }).catch(err => {
+                console.error('Failed to copy: ', err);
+                showToast('Failed to copy CODE.', 'error');
+            });
+        }
+
+        function showDeleteModal(fileName, onConfirm) {
+            const modal = document.getElementById('deleteModal');
+            const message = document.getElementById('deleteModalMessage');
+            const confirmBtn = document.getElementById('deleteModalConfirm');
+            const cancelBtn = document.getElementById('deleteModalCancel');
+
+            message.innerHTML = `Are you sure you want to delete <strong>"${fileName}"</strong>?<br>This action cannot be undone.`;
+            modal.classList.add('show');
+
+            const handleConfirm = () => {
+                hideDeleteModal();
+                onConfirm();
+                confirmBtn.removeEventListener('click', handleConfirm);
+                cancelBtn.removeEventListener('click', handleCancel);
+            };
+            const handleCancel = () => {
+                hideDeleteModal();
+                confirmBtn.removeEventListener('click', handleConfirm);
+                cancelBtn.removeEventListener('click', handleCancel);
+            };
+
+            confirmBtn.addEventListener('click', handleConfirm);
+            cancelBtn.addEventListener('click', handleCancel);
+
+            modal.addEventListener('click', (e) => { if (e.target === modal) handleCancel(); });
+            document.addEventListener('keydown', function onEscape(e) {
+                if (e.key === 'Escape') {
+                    handleCancel();
+                    document.removeEventListener('keydown', onEscape);
+                }
+            });
+        }
+
+        function hideDeleteModal() {
+            document.getElementById('deleteModal').classList.remove('show');
+        }
+
+        async function handleDeleteAction(itemId, itemName) {
+            showDeleteModal(itemName, async () => {
+                showToast('Deleting magazine...', 'success');
+                try {
+                    const response = await fetch('/delete_magazine', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ id: itemId })
+                    });
+                    const result = await response.json();
+                    if (response.ok && result.status === 'success') {
+                        showToast(`Magazine "${itemName}" deleted successfully!`, 'success');
+                        await loadAllFiles();
+                    } else {
+                        showToast(`Failed to delete magazine: ${result.message || 'Unknown error'}`, 'error');
+                    }
+                } catch (error) {
+                    showToast(`Error deleting magazine: ${error.message}`, 'error');
+                }
+            });
+        }
+
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            let bgColor = type === 'error' ? 'bg-red-600' : type === 'warning' ? 'bg-yellow-600' : 'bg-green-600';
+            toast.className = `fixed top-4 right-4 ${bgColor} text-white px-4 py-2 rounded-lg shadow-lg z-50 transition-all duration-300`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(-10px)';
+                setTimeout(() => { document.body.removeChild(toast); }, 250);
+            }, 2200);
+        }
+
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) {
+            searchInput.addEventListener('focus', () => searchInput.parentElement.parentElement.classList.add('focused'));
+            searchInput.addEventListener('blur', () => searchInput.parentElement.parentElement.classList.remove('focused'));
+            searchInput.addEventListener('input', () => renderGallery());
+        }
+    });
+</script>
+    
+    """

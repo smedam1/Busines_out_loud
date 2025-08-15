@@ -44,6 +44,36 @@ def get_leadership_details():
     response = supabase.table("leadership_table").select("*").execute()
     return response.data[0] if response.data else None
 
+def get_main_pages_db(search_keyword, page=1, per_page=100, include_deleted=False):
+    print(
+        f"Searching main pages with keyword: {search_keyword}, page: {page}, per_page: {per_page}"
+    )
+
+    offset = (page - 1) * per_page
+
+    query = supabase.table("main_pages").select("*", count="exact")
+    
+    # Exclude pages with status 'DELETED'
+    query = query.or_(f'page_data->>status.is.null,page_data->>status.neq.DELETED')
+
+    if not search_keyword or search_keyword.strip() == "":
+        response = (
+            query.order("updated_at", desc=True)
+            .range(offset, offset + per_page - 1)
+            .execute()
+        )
+    else:
+        search_term = f'%{search_keyword.lower()}%'
+        response = (
+            query.ilike("page_name", search_term)
+            .order("updated_at", desc=True)
+            .range(offset, offset + per_page - 1)
+            .execute()
+        )
+
+    if response.data:
+        return response.data, response.count
+    return [], 0
 
 def update_main_page_db(page_id, page_data):
     try:

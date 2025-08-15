@@ -16,7 +16,7 @@ def get_magazine_url(name):
     base_url = os.environ.get("SUPABASE_URL")
     return f"{base_url}/storage/v1/object/public/magazine-pdfs/{name}"
 
-def create_magazine_db(title, pdf_file, thumbnail_file):
+def create_magazine_db(title, pdf_file, thumbnail_file, created_by):
     pdf_filename = None
     thumbnail_filename = None
     
@@ -52,7 +52,8 @@ def create_magazine_db(title, pdf_file, thumbnail_file):
             "id": magazine_id,
             "title": title,
             "pdf_url": pdf_url,
-            "thumbnail_url": thumbnail_url
+            "thumbnail_url": thumbnail_url,
+            "created_by": created_by
         }).execute()
         print(f"response from database insert: {response}")
         

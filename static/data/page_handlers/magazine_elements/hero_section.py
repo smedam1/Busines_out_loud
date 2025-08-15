@@ -32,7 +32,7 @@ def get_magazine_homepage_hero_section(data: dict) -> str:
                     <div class="w-full aspect-[3/4] rounded-lg bg-cover bg-center" style="background-image: url('{data['hero_image']}')"></div>
                     
                     
-                    <a href="{data.get("hero_link", "#")}" class="w-full max-w-[175px] mt-[-6rem]">
+                    <a href="{data.get("hero_link", "/magazine/CXO%20TechBOT%20October%202024-1-25.pdf")}" class="w-full max-w-[175px] mt-[-6rem]">
                         <img src="static/images/read_full_story_button.png" alt="Read full story" class="w-full h-auto object-contain">
                     </a>
                 </div>
