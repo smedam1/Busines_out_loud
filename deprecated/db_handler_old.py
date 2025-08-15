@@ -61,36 +61,7 @@ def get_page_data(page_name: str):
     )
     return response.data[0] if response.data else None
 
-def get_main_pages_db(search_keyword, page=1, per_page=100, include_deleted=False):
-    print(
-        f"Searching main pages with keyword: {search_keyword}, page: {page}, per_page: {per_page}"
-    )
 
-    offset = (page - 1) * per_page
-
-    query = supabase.table("main_pages").select("*", count="exact")
-    
-    # Exclude pages with status 'DELETED'
-    query = query.or_(f'page_data->>status.is.null,page_data->>status.neq.DELETED')
-
-    if not search_keyword or search_keyword.strip() == "":
-        response = (
-            query.order("updated_at", desc=True)
-            .range(offset, offset + per_page - 1)
-            .execute()
-        )
-    else:
-        search_term = f'%{search_keyword.lower()}%'
-        response = (
-            query.ilike("page_name", search_term)
-            .order("updated_at", desc=True)
-            .range(offset, offset + per_page - 1)
-            .execute()
-        )
-
-    if response.data:
-        return response.data, response.count
-    return [], 0
 
 
 def format_file_size(size_bytes):
@@ -351,110 +322,6 @@ def delete_main_page_db(page_id):
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
-    # Prepare update data similar to save_blogs_to_db
-    modified_data = {}
-    modified_data["id"] = blog_data.get("blogTitle", "").replace(" ", "_").lower()
-    modified_data["created_by"] = blog_data.get("admin_name", "")
-    modified_data["status"] = blog_data.get("status", "draft")
-
-    # Extract category and SEO information
-    modified_data["category"] = blog_data.get("blogCategory", "")
-    # Sub-category commented out as requested
-    # modified_data['sub_category'] = blog_data.get('blogSubCategory', '')
-    
-    # Extract and store labels in JSON format
-    labels_data = blog_data.get("labels", {})
-    modified_data["labels"] = labels_data if isinstance(labels_data, dict) else {}
-
-    # Generate meta tags from SEO data
-    seo_title = blog_data.get("seoTitle", "") or blog_data.get("blogTitle", "")
-    seo_description = blog_data.get("seoMetaDescription", "") or blog_data.get(
-        "blogSummary", ""
-    )
-    seo_canonical = (
-        blog_data.get("seoCanonicalUrl", "")
-        or f"{blog_data.get('base_url', '')}/blog/{modified_data['id']}"
-    )
-
-    # Create meta tags HTML
-    meta_tags = f"""<title>{seo_title}</title>
-    <meta name="description" content="{seo_description}">
-    <meta property="og:title" content="{seo_title}">
-    <meta property="og:description" content="{seo_description}">
-    <meta property="og:image" content="{blog_data.get('mainImageUrl', '')}">
-    <meta property="og:url" content="{seo_canonical}">
-    <meta property="og:type" content="article">
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="{seo_title}">
-    <meta name="twitter:description" content="{seo_description}">
-    <meta name="twitter:image" content="{blog_data.get('mainImageUrl', '')}">
-    <link rel="canonical" href="{seo_canonical}">"""
-
-    modified_data["meta_tags"] = meta_tags
-
-    # Store the base_url before cleaning up
-    base_url = blog_data.get("base_url", "")
-
-    # Clean up fields before storing in json_data
-    fields_to_remove = [
-        "admin_name",
-        "status",
-        "enc_email",
-        "enc_pwd",
-        "base_url",
-        "blog_id",
-        "reason",
-        "labels",
-    ]
-    for field in fields_to_remove:
-        if field in blog_data:
-            del blog_data[field]
-
-    # Store the complete blog data
-    modified_data["json_data"] = blog_data
-
-    # Get existing blog history and append to it
-    existing_blog = get_blog(blog_id)
-    if existing_blog and "history" in existing_blog:
-        modified_data["history"] = existing_blog["history"]
-        modified_data["history"].append(
-            {
-                "admin_name": modified_data["created_by"],
-                "date": blog_data.get("blogDate", ""),
-                "action": "updated",
-            }
-        )
-    else:
-        modified_data["history"] = [
-            {
-                "admin_name": modified_data["created_by"],
-                "date": blog_data.get("blogDate", ""),
-                "action": "updated",
-            }
-        ]
-
-    try:
-        # Update the existing blog
-        response = (
-            supabase.table("blogs").update(modified_data).eq("id", blog_id).execute()
-        )
-
-        if response.data:
-            response.data[0]["url"] = f"{base_url}/blog/{modified_data['id']}"
-            return {
-                "status": "success",
-                "message": "Blog updated successfully.",
-                "data": response.data[0],
-            }
-        else:
-            return {
-                "status": "error",
-                "message": "Blog not found or could not be updated.",
-            }
-
-    except Exception as e:
-        print(f"Error updating blog: {e}")
-        return {"status": "error", "message": str(e)}
 
 
 def delete_blog_from_db(blog_id, redirect_url=None):
@@ -701,6 +568,10 @@ def user_login_db_check(email, password):
 #                            MAGAZINE PAGE FUNCTIONS                             #
 # --------------------------------------------------------------------------------#
 
+def get_magazine_url(name):
+    base_url = os.environ.get("SUPABASE_URL")
+    return f"{base_url}/storage/v1/object/public/magazine-pdfs/{name}"
+
 def create_magazine_db(title, pdf_file, thumbnail_file):
     pdf_filename = None
     thumbnail_filename = None
@@ -760,6 +631,18 @@ def create_magazine_db(title, pdf_file, thumbnail_file):
         print(f"Error creating magazine: {e}")
         return {"status": "error", "message": str(e)}
 
+def get_recent_magazines_db(limit=9):
+    print(f"Fetching recent magazines with limit: {limit}")
+    response = (
+        supabase.table("magazine_details")
+        .select("*")
+        .order("created_at", desc=True)
+        .range(0, limit - 1)
+        .execute()
+    )
+    if response.data:
+        return response.data
+    return []
 
 def get_magazine_details_db(magazine_id):
     print(f"Fetching magazine details for ID: {magazine_id}")

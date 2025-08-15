@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Flipbook Component</title>
+    <title>PDF Flipbook</title>
     <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -32,6 +32,37 @@
       body {
         -ms-overflow-style: none;
         scrollbar-width: none;
+        font-family: "Plus Jakarta Sans", sans-serif;
+        background: #000;
+        color: #fff;
+        height: 100vh;
+        overflow: hidden;
+        margin: 0;
+        padding: 0;
+      }
+      
+      /* Fullscreen mode styles */
+      body.fullscreen-mode {
+        background: #000;
+        color: #fff;
+      }
+      
+      /* Fullscreen layout changes */
+      body.fullscreen-mode .flex-grow {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+      }
+      
+      body.fullscreen-mode .progress-bar-section {
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 90%;
+        max-width: 1000px;
+        z-index: 1000;
       }
 
       /* Flipbook & Page Styles */
@@ -50,6 +81,8 @@
         justify-content: center;
         align-items: center;
         overflow: hidden;
+        border: none;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
       }
 
       /* page-flip.js z-index helpers */
@@ -108,9 +141,11 @@
         transition: background-color 0.2s;
         z-index: 1000;
         cursor: pointer;
+        border: 1px solid rgba(0, 123, 255, 0.2);
       }
       .pdf-link-overlay:hover {
         background-color: rgba(0, 123, 255, 0.2);
+        box-shadow: 0 0 8px rgba(0, 123, 255, 0.4);
       }
 
       /* Progress Bar Styles */
@@ -138,11 +173,32 @@
       .progress-bar-container:active {
         cursor: grabbing;
       }
-      @media (max-width: 1024px) {
-        body:not(.fullscreen-mode) .App-header .progress-bar-section {
-          width: 90% !important;
-          max-width: 600px;
-        }
+      
+      /* Progress tooltip */
+      .progress-tooltip {
+        position: absolute;
+        bottom: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.8);
+        color: white;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        white-space: nowrap;
+        margin-bottom: 8px;
+        opacity: 0;
+        transition: opacity 0.2s;
+        z-index: 20;
+      }
+      .progress-tooltip:after {
+        content: '';
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        border: 4px solid transparent;
+        border-top-color: rgba(0, 0, 0, 0.8);
       }
 
       /* Control Button Styles */
@@ -155,239 +211,137 @@
       .download-button:active {
         transform: scale(0.98);
       }
-      .download-button:hover {
+      .download-button:hover,
+      .fullscreen-button:hover {
         background-color: #e5e7eb !important; /* Tailwind gray-200 */
       }
+      
+      /* Navigation Arrows */
+      .nav-arrow {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 50px;
+        height: 50px;
+        background: rgba(255, 255, 255, 0.9);
+        border: 1px solid #e5e7eb;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        z-index: 100;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        pointer-events: auto !important;
+        flex-shrink: 0;
+      }
+      
+      .nav-arrow:hover {
+        background: rgba(255, 255, 255, 1);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        transform: translateY(-50%) scale(1.1);
+      }
+      
+      .nav-arrow.prev {
+        left: 10px;
+      }
+      
+      .nav-arrow.next {
+        right: 10px;
+      }
+      
+      .nav-arrow svg {
+        width: 24px;
+        height: 24px;
+        color: #374151;
+      }
+      
+      .nav-arrow.disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
+      }
+      
+      .nav-arrow.disabled:hover {
+        transform: translateY(-50%);
+        background: rgba(255, 255, 255, 0.9);
+      }
+      
+      body.fullscreen-mode .nav-arrow {
+        background: rgba(0, 0, 0, 0.7);
+        border-color: rgba(255, 255, 255, 0.2);
+        z-index: 1000;
+      }
+      
+      body.fullscreen-mode .nav-arrow:hover {
+        background: rgba(0, 0, 0, 0.9);
+      }
+      
+      body.fullscreen-mode .nav-arrow svg {
+        color: #fff;
+      }
 
-      /* Fullscreen Mode Styles (largely removed as parent iframe controls fullscreen state) */
-      /* Minimal styles retained if any are still needed for iframe child behavior */
-    /* --- UPDATED DROPDOWN STYLES --- */
-        .dropdown-container {
-            position: relative;
-            padding-bottom: 20px;
-            /* Creates an invisible area below the link for the cursor to travel over */
-            margin-bottom: -20px;
-            /* Negative margin to pull layout back up */
-        }
-
-        .dropdown-content {
-            position: absolute;
-            top: 100%;
-            /* Positions the dropdown right below the parent's padding area */
-            left: 50%;
-            transform: translateX(-50%);
-            width: 320px;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
-            border: 1px solid #e5e7eb;
-            opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.2s ease, visibility 0.2s;
-            z-index: 50;
-            pointer-events: none;
-            padding: 1rem;
-        }
-
-        .dropdown-container:hover .dropdown-content {
-            opacity: 1;
-            visibility: visible;
-            pointer-events: auto;
-        }
-
-        .line-clamp-2 {
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-        }
-
-        .dropdown-item {
-            transition: all 0.2s ease;
-        }
-
-        .dropdown-item:hover {
-            background-color: #f9fafb;
-            transform: translateX(2px);
-        }
-
-        .dropdown-item:hover .ph-arrow-right {
-            transform: translateX(2px);
-            color: #3533CD;
-        }
-
-        /* --- MOBILE ACCORDION STYLES --- */
-        .accordion-toggle .item-title {
-            flex-grow: 1;
-        }
-
-        .accordion-icon {
-            transition: transform 0.3s ease, color 0.3s ease;
-        }
-
-        .accordion-toggle[aria-expanded="true"] .accordion-icon {
-            transform: rotate(180deg);
-            color: white;
-        }
-
-        .accordion-content {
-            background-color: #1a1a1a;
-            overflow: hidden;
-            max-height: 0;
-            transition: max-height 0.4s cubic-bezier(0.25, 1, 0.5, 1);
-        }
-
-        .sub-menu-item {
-            display: flex;
-            align-items: center;
-            padding: 0.5rem;
-            border-radius: 0.375rem;
-            transition: background-color 0.2s ease;
-            color: white;
-            text-decoration: none;
-        }
-
-        .sub-menu-item:hover {
-            background-color: #252525;
-        }
-
+      /* Main layout */
+      .flipbook-container {
+        position: relative;
+        width: 100%;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+      }
+      
+      .flipbook-wrapper {
+        position: relative;
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        max-width: 90%;
+        margin: 20px 0;
+      }
+      
+      body.fullscreen-mode .flipbook-wrapper {
+        max-width: 95%;
+        margin: 40px 0;
+      }
+      
+      .flipbook-inner {
+        position: relative;
+        width: 100%;
+        max-width: 800px;
+        height: 500px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      
+      body.fullscreen-mode .flipbook-inner {
+        max-width: 1200px;
+        height: 700px;
+      }
+      
+      /* Loading overlay */
+      .loading-overlay {
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.9);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+      }
+      
+      .loading-text {
+        color: white;
+        font-size: 16px;
+        margin-top: 16px;
+      }
     </style>
-    <script>
-            document.addEventListener('DOMContentLoaded', function() {
-                const mobileMenuButton = document.getElementById('mobile-menu-button');
-                const mobileMenu = document.getElementById('mobile-menu');
-                
-                if (mobileMenuButton && mobileMenu) {
-                    mobileMenuButton.addEventListener('click', function() {
-                        mobileMenu.classList.toggle('hidden');
-                        mobileMenuButton.classList.toggle('hamburger-active');
-                        
-                        if (!mobileMenu.classList.contains('hidden')) {
-                            mobileMenu.classList.add('slide-down');
-                        } else {
-                            mobileMenu.classList.remove('slide-down');
-                        }
-                    });
-                }
-                document.addEventListener('click', function(e) {
-                    if (e.target.closest('.dropdown-item:not(.know-more-item)')) {
-                        const item = e.target.closest('.dropdown-item');
-                        const category = item.getAttribute('data-category');
-                        const blogId = item.getAttribute('data-id');
-                        
-                        console.log('Clicked blog:', { category, blogId });
-                    }
-                });
-                document.addEventListener('click', function(e) {
-                    if (e.target.closest('.know-more-item')) {
-                        const item = e.target.closest('.dropdown-container');
-                        const category = item.getAttribute('data-category');
-                        
-                        console.log('Know More clicked for:', category);
-                    }
-                });
-                const mobileMenuContainer = document.getElementById('mobile-menu');
-                if (mobileMenuContainer) {
-                    mobileMenuContainer.addEventListener('click', function(e) {
-                        const toggle = e.target.closest('.accordion-toggle');
-                        if (!toggle) return;
-                        e.preventDefault();
-                        const content = toggle.nextElementSibling;
-                        const isCurrentlyOpen = toggle.getAttribute('aria-expanded') === 'true';
-                        mobileMenuContainer.querySelectorAll('.accordion-toggle').forEach(otherToggle => {
-                            if (otherToggle !== toggle) {
-                                otherToggle.setAttribute('aria-expanded', 'false');
-                                const otherContent = otherToggle.nextElementSibling;
-                                if (otherContent) otherContent.style.maxHeight = '0px';
-                            }
-                        });
-                        if (isCurrentlyOpen) {
-                            toggle.setAttribute('aria-expanded', 'false');
-                            content.style.maxHeight = '0px';
-                        } else {
-                            toggle.setAttribute('aria-expanded', 'true');
-                            content.style.maxHeight = content.scrollHeight + 'px';
-                        }
-                    });
-                }
-            });
-        </script>
-        <style>
-          .dropdown-container {
-            position: relative;
-            padding-bottom: 20px; /* Creates an invisible area below the link for the cursor to travel over */
-            margin-bottom: -20px;  /* Negative margin to pull layout back up */
-          }
-          .dropdown-content {
-            position: absolute;
-            top: 100%; /* Positions the dropdown right below the parent's padding area */
-            left: 50%;
-            transform: translateX(-50%);
-            width: 320px;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
-            border: 1px solid #e5e7eb;
-            opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.2s ease, visibility 0.2s;
-            z-index: 50;
-            pointer-events: none;
-            padding: 1rem;
-          }
-          .dropdown-container:hover .dropdown-content {
-            opacity: 1;
-            visibility: visible;
-            pointer-events: auto;
-          }
-          
-          .line-clamp-2 {
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-          }
-          .dropdown-item {
-            transition: all 0.2s ease;
-          }
-          .dropdown-item:hover {
-            background-color: #f9fafb;
-            transform: translateX(2px);
-          }
-          .dropdown-item:hover .ph-arrow-right {
-            transform: translateX(2px);
-            color: #3533CD;
-          }
-          /* --- MOBILE ACCORDION STYLES --- */
-          .accordion-toggle .item-title {
-            flex-grow: 1;
-          }
-          .accordion-icon {
-            transition: transform 0.3s ease, color 0.3s ease;
-          }
-          .accordion-toggle[aria-expanded="true"] .accordion-icon {
-            transform: rotate(180deg);
-            color: white;
-          }
-          .accordion-content {
-            background-color: #1a1a1a;
-            overflow: hidden;
-            max-height: 0;
-            transition: max-height 0.4s cubic-bezier(0.25, 1, 0.5, 1);
-          }
-          .sub-menu-item {
-            display: flex;
-            align-items: center;
-            padding: 0.5rem;
-            border-radius: 0.375rem;
-            transition: background-color 0.2s ease;
-            color: white;
-            text-decoration: none;
-          }
-          .sub-menu-item:hover {
-            background-color: #252525;
-          }
-        </style>
 
     <script>
       tailwind.config = {
@@ -402,119 +356,107 @@
       };
     </script>
   </head>
-  <body class="font-jakarta bg-black text-bol-black">
-    {{ header | safe }}
-    <!-- Middle Flipbook Section -->
-    <div
-      class="App text-center flex-grow flex flex-col col-span-1 lg:col-span-3"
-    >
-      <header
-        class="App-header flex-grow flex flex-col items-center justify-center text-2xl p-5 box-border"
-        style="background-color: transparent"
-      >
-        <div
-          id="flipbook-wrapper"
-          class="relative w-full max-w-[1100px] h-[72vh] sm:h-[720px] mx-auto book-container"
-        >
-          <!-- Loading overlay -->
-          <div
-            id="loading-overlay"
-            class="absolute inset-0 flex flex-col justify-center items-center z-50"
-          ></div>
-          <div
-            id="my-flipbook-container"
-            class="w-full h-full max-w-[1100px] max-h-[720px]"
-          ></div>
-        </div>
+  <body class="font-jakarta">
+    <div class="flipbook-container">
+      <!-- Navigation Arrows -->
+      <div class="nav-arrow prev" id="prev-btn" title="Previous Page">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+        </svg>
+      </div>
+      
+      <div class="nav-arrow next" id="next-btn" title="Next Page">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+        </svg>
+      </div>
 
-        <!-- Progress Bar Section -->
-        <div
-          class="progress-bar-section w-full max-w-[1100px] mx-auto mt-6 mb-4"
-        >
-          <div class="flex items-center justify-between mb-2 text-sm text-gray-600">
-            <div class="flex items-center gap-2">
+      <!-- Flipbook Section -->
+      <div class="flipbook-wrapper">
+        <div class="flipbook-inner">
+          <!-- Loading overlay -->
+          <div class="loading-overlay" id="loading-overlay">
+            <div class="spinner w-12 h-12 border-4 border-gray-300 border-t-blue-500 rounded-full"></div>
+            <div class="loading-text">Loading PDF...</div>
+          </div>
+          
+          <div id="my-flipbook-container" class="w-full h-full"></div>
+        </div>
+      </div>
+
+      <!-- Progress Bar Section -->
+      <div class="progress-bar-section w-full max-w-4xl mx-auto px-4 pb-4">
+        <!-- Progress Bar and Controls in Single Line -->
+        <div class="flex items-center gap-4">
+          <!-- Progress Bar Container -->
+          <div class="progress-bar-container relative flex-1 h-2 bg-gray-600 rounded-full cursor-pointer">
+            <div
+              id="progress-bar-fill"
+              class="absolute top-0 left-0 h-full bg-gradient-to-r from-purple-500 to-blue-500 rounded-full transition-all duration-300 ease-out"
+              style="width: 0%"
+            ></div>
+            <div
+              id="progress-bar-handle"
+              class="absolute top-1/2 w-4 h-4 bg-white border-2 border-purple-500 rounded-full shadow-lg cursor-grab transition-all duration-200 hover:scale-110"
+              style="left: 0%"
+            ></div>
+            <!-- Page Number Tooltip -->
+            <div class="progress-tooltip" id="progress-tooltip">
+              <span id="tooltip-page-info">1 of 1</span>
             </div>
           </div>
           
-          <!-- Progress Bar and Controls in Single Line -->
-          <div class="flex items-center gap-4">
-            <!-- Progress Bar Container (Smaller Width) -->
-            <div
-              class="progress-bar-container relative flex-1 max-w-[1050px] h-2 bg-gray-200 rounded-full cursor-pointer"
+          <!-- Control Buttons -->
+          <div class="flex items-center gap-2">
+            <button
+              id="download-btn"
+              class="download-button p-2 bg-gray-700 hover:bg-gray-600 border border-gray-500 rounded-md transition-colors duration-200 text-white"
+              title="Download PDF"
             >
-              <div
-                id="progress-bar-fill"
-                class="absolute top-0 left-0 h-full bg-gradient-to-r from-purple-500 to-blue-500 rounded-full transition-all duration-300 ease-out"
-                style="width: 0%"
-              ></div>
-              <div
-                id="progress-bar-handle"
-                class="absolute top-1/2 w-4 h-4 bg-white border-2 border-purple-500 rounded-full shadow-lg cursor-grab transition-all duration-200 hover:scale-110"
-                style="left: 0%"
-              ></div>
-              <!-- Page Number Tooltip -->
-              <div
-                id="progress-tooltip"
-                class="absolute bottom-8 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 pointer-events-none transition-opacity duration-200 z-20"
-                style="left: 0px;"
+              <svg
+                class="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
               >
-                <span id="tooltip-page-info">1 of 1</span>
-                <div class="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
-              </div>
-            </div>
-            
-            <!-- Control Buttons -->
-            <div class="flex items-center gap-2">
-              <button
-                id="download-btn"
-                class="download-button p-2 bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded-md transition-colors duration-200"
-                title="Download PDF"
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
+            </button>
+            <button
+              id="toggle-fullscreen-btn"
+              class="fullscreen-button p-2 bg-gray-700 hover:bg-gray-600 border border-gray-500 rounded-md transition-colors duration-200 text-white"
+              title="Toggle Fullscreen"
+            >
+              <svg
+                id="toggle-fullscreen-icon"
+                class="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
               >
-                <svg
-                  class="w-4 h-4 transition-transform duration-200 hover:scale-110"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                  />
-                </svg>
-              </button>
-              <button
-                id="toggle-fullscreen-btn"
-                class="fullscreen-button p-2 bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded-md transition-colors duration-200"
-                title="Exit Fullscreen"
-              >
-                <svg
-                  id="toggle-fullscreen-icon"
-                  class="w-4 h-4 transition-transform duration-200 hover:scale-110"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    fill="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="0"
-                    d="M10.41,13.83,12,15.41,13.59,13.83,15,15.24l-1.59,1.59,1.59,1.59-1.41,1.41-1.59-1.59-1.59,1.59-1.41-1.41,1.59-1.59L9,15.24ZM15.24,9,13.83,10.41,15.41,12,13.83,13.59,15,15,18,12,15,9ZM9,9,6,12,9,15l1.41-1.41L8.83,12,10.41,10.41,9,9Z" transform="scale(1.2) translate(-2, -2)"
-                  />
-                </svg>
-              </button>
-            </div>
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"
+                />
+              </svg>
+            </button>
           </div>
         </div>
-      </header>
+      </div>
     </div>
-    <!-- End of Middle Flipbook Section -->
 
     <script src="https://cdn.jsdelivr.net/npm/page-flip/dist/js/page-flip.browser.min.js"></script>
     <script>
-      // Get page number from server-side template
-      const INITIAL_PAGE_NUMBER = parseInt("{{ page_number }}", 10) || 1;
+      // Get page number from URL parameter or injected variable
+      const urlParams = new URLSearchParams(window.location.search);
+      const INITIAL_PAGE_NUMBER = parseInt(urlParams.get('page_number') || "1", 10) || 1;
       
       (function () {
         "use strict";
@@ -532,25 +474,15 @@
           // State flags
           isTransitioning: false,
           isResizing: false,
-          // isFullscreen: false, // Removed
-          // isFullscreenTransition: false, // Removed
+          isChangingFullscreen: false,
 
           // Dimensions
           lastKnownWidth: 0,
           lastKnownHeight: 0,
 
-          // Original styles for fullscreen (Removed as fullscreen state management is simplified)
-          // originalStyles: {
-          //   appHeaderForFlipbook: {},
-          //   flipbookWrapper: {},
-          //   flipbookContainer: {},
-          //   progressBarSection: {},
-          // },
-
           // DOM elements
           elements: {
             body: document.body,
-            appHeaderForFlipbook: null,
             flipBookWrapper: null,
             flipBook: null,
             loadingOverlay: null,
@@ -559,9 +491,12 @@
             progressBarContainer: null,
             progressBarHandle: null,
             progressBarFill: null,
-            currentPageInfo: null,
-            totalPagesInfo: null,
+            progressTooltip: null,
+            tooltipPageInfo: null,
             progressBarSection: null,
+            prevBtn: null,
+            nextBtn: null,
+            downloadBtn: null,
           },
 
           // Event state
@@ -573,65 +508,64 @@
         // Initialize application
         function init() {
           // Initialize DOM elements
-          app.elements.appHeaderForFlipbook =
-            document.querySelector(".App .App-header");
-          app.elements.flipBookWrapper =
-            document.getElementById("flipbook-wrapper");
-          app.elements.flipBook = document.getElementById(
-            "my-flipbook-container"
-          );
-          app.elements.loadingOverlay =
-            document.getElementById("loading-overlay");
-          app.elements.fullscreenBtn =
-            document.getElementById("toggle-fullscreen-btn");
-          app.elements.fullscreenIcon =
-            document.getElementById("toggle-fullscreen-icon");
-          app.elements.progressBarContainer = document.querySelector(
-            ".progress-bar-container"
-          );
-          app.elements.progressBarHandle = document.getElementById(
-            "progress-bar-handle"
-          );
-          app.elements.progressBarFill =
-            document.getElementById("progress-bar-fill");
-          app.elements.currentPageInfo = null; // Element removed but referenced in validation
-          app.elements.totalPagesInfo = null; // Element removed but referenced in validation
-          app.elements.progressBarSection = document.querySelector(
-            ".progress-bar-section"
-          );
+          app.elements.flipBookWrapper = document.querySelector(".flipbook-wrapper");
+          app.elements.flipBook = document.getElementById("my-flipbook-container");
+          app.elements.loadingOverlay = document.getElementById("loading-overlay");
+          app.elements.fullscreenBtn = document.getElementById("toggle-fullscreen-btn");
+          app.elements.fullscreenIcon = document.getElementById("toggle-fullscreen-icon");
+          app.elements.progressBarContainer = document.querySelector(".progress-bar-container");
+          app.elements.progressBarHandle = document.getElementById("progress-bar-handle");
+          app.elements.progressBarFill = document.getElementById("progress-bar-fill");
+          app.elements.progressTooltip = document.getElementById("progress-tooltip");
+          app.elements.tooltipPageInfo = document.getElementById("tooltip-page-info");
+          app.elements.progressBarSection = document.querySelector(".progress-bar-section");
+          app.elements.prevBtn = document.getElementById("prev-btn");
+          app.elements.nextBtn = document.getElementById("next-btn");
+          app.elements.downloadBtn = document.getElementById("download-btn");
 
           // Validate essential elements
           const missingElements = Object.entries(app.elements)
-            .filter(([key, element]) => !element && key !== "originalStyles" && key !== 'currentPageInfo' && key !== 'totalPagesInfo')
+            .filter(([key, element]) => !element)
             .map(([key]) => key);
 
           if (missingElements.length > 0) {
             console.error("Missing required elements:", missingElements);
             if (app.elements.loadingOverlay) {
-              app.elements.loadingOverlay.innerHTML = `<p class="text-red-500 p-4">Error: Page components missing. Cannot load magazine viewer. (${missingElements.join(
-                ", "
-              )})</p>`;
+              app.elements.loadingOverlay.innerHTML = `<p class="text-red-500 p-4">Error: Page components missing. Cannot load magazine viewer.</p>`;
             }
             return;
           }
 
-          // Initialize app components
-          const pdfUrl =
-            "{{ pdf_url }}"; // Public sample PDF
+          // Get PDF URL - check for injected URL first, then fall back to default
+          let pdfUrl;
+          if (typeof INJECTED_PDF_URL !== 'undefined') {
+            pdfUrl = INJECTED_PDF_URL;
+          } else {
+            // Fallback to URL parameter or default
+            pdfUrl = urlParams.get('magazine_url') || "https://iwyjssxhrcucnrkzkvmt.supabase.co/storage/v1/object/public/magazine-pdfs/CXO%20TechBOT%20October%202024-1-10.pdf";
+          }
+          
+          console.log('Loading PDF:', pdfUrl);
+          console.log('Starting at page:', INITIAL_PAGE_NUMBER);
+          
           loadPDF(pdfUrl);
 
+          // Initialize UI components
           setTimeout(() => {
-            initializeExitFullscreenButton();
+            initializeFullscreenButton();
             initializeDownloadButton();
+            initializeNavigationButtons();
           }, 500);
         }
 
         // Initialize resize observer
         const resizeObserver = new ResizeObserver(async (entries) => {
-          // if (app.isFullscreenTransition) return; // Removed: isFullscreenTransition no longer exists
-
+          if (app.isChangingFullscreen) {
+            return;
+          }
+          
           for (const entry of entries) {
-            if (entry.target === app.elements.flipBookWrapper) {
+            if (entry.target === app.elements.flipBook) {
               const { width, height } = entry.contentRect;
               if (
                 Math.abs(width - app.lastKnownWidth) > 1 ||
@@ -639,40 +573,37 @@
               ) {
                 app.lastKnownWidth = width;
                 app.lastKnownHeight = height;
-                if (!app.isResizing && app.pageFlip) {
+                if (!app.isResizing && app.pageFlip && !app.isChangingFullscreen) {
                   try {
                     app.isResizing = true;
-                    const currentPageIndex = app.pageFlip.getCurrentPageIndex();
+                    let currentPageIndex = 0;
+                    try {
+                      currentPageIndex = app.pageFlip.getCurrentPageIndex();
+                    } catch (e) {
+                      currentPageIndex = 0;
+                    }
 
                     const containerForFlipInstance = app.elements.flipBook;
                     if (
                       containerForFlipInstance.clientWidth > 0 &&
                       containerForFlipInstance.clientHeight > 0
                     ) {
-                      // --- START CHANGE: Responsive Logic ---
                       const mobileBreakpoint = 768;
                       const isMobile = window.innerWidth < mobileBreakpoint;
                       
                       const pageW = isMobile ? containerForFlipInstance.clientWidth : Math.floor(containerForFlipInstance.clientWidth / 2);
                       const pageH = containerForFlipInstance.clientHeight;
                       
+                      await ensurePageElements();
                       await initFlipbookInstance(
                         currentPageIndex,
                         pageW,
                         pageH,
-                        isMobile // Pass mobile state
-                      );
-                      // --- END CHANGE ---
-                    } else {
-                      console.warn(
-                        "ResizeObserver: flipBook container has zero dimensions. Skipping reinitialization."
+                        isMobile
                       );
                     }
                   } catch (error) {
-                    console.error(
-                      "Error handling resize observer event:",
-                      error
-                    );
+                    console.error("Error handling resize observer event:", error);
                   } finally {
                     app.isResizing = false;
                   }
@@ -690,20 +621,13 @@
           }
           app.pageCache.clear();
           app.pendingRenderQueue.clear();
-          // if (app.elements.body.classList.contains("fullscreen-mode")) { // Removed: fullscreen-mode class management is simplified/removed
-          //   app.elements.body.classList.remove("fullscreen-mode");
-          // }
           resizeObserver.disconnect();
         }
 
         // Set up application
         function setupApp() {
-          if (app.elements.flipBookWrapper) {
-            resizeObserver.observe(app.elements.flipBookWrapper);
-          } else {
-            console.error(
-              "flipBookWrapper not found for ResizeObserver at setupApp."
-            );
+          if (app.elements.flipBook) {
+            resizeObserver.observe(app.elements.flipBook);
           }
           window.addEventListener("unload", cleanup);
           window.app = app;
@@ -722,8 +646,7 @@
 
         function createPageDiv(pageNumber, totalPages) {
           const pageDiv = document.createElement("div");
-          pageDiv.className =
-            "flipbook-page bg-gray-50 text-gray-800 flex flex-col justify-center items-center shadow-lg box-border";
+          pageDiv.className = "flipbook-page bg-gray-50 text-gray-800 flex flex-col justify-center items-center shadow-lg box-border";
           pageDiv.setAttribute("data-page-number", pageNumber);
 
           if (pageNumber === 1 || pageNumber === totalPages) {
@@ -737,10 +660,37 @@
           return pageDiv;
         }
 
+        async function ensurePageElements() {
+          try {
+            const flipBookElement = app.elements.flipBook;
+            if (!flipBookElement) return false;
+
+            const existing = flipBookElement.querySelectorAll(".flipbook-page");
+            if (existing && existing.length > 0) {
+              return false;
+            }
+
+            if (!app.pdfDocument) return false;
+
+            flipBookElement.innerHTML = "";
+            const totalPages = app.pdfDocument.numPages;
+            for (let i = 1; i <= totalPages; i++) {
+              const pageDiv = createPageDiv(i, totalPages);
+              flipBookElement.appendChild(pageDiv);
+            }
+
+            await waitForReflow();
+            return true;
+          } catch (e) {
+            console.error("ensurePageElements error:", e);
+            return false;
+          }
+        }
+
         async function renderPageToCanvas(pageNumber) {
           try {
             const useCache =
-              !app.isResizing && // isFullscreenTransition removed
+              !app.isResizing &&
               app.pageCache.has(pageNumber) &&
               document.querySelector(`[data-page-number="${pageNumber}"]`);
 
@@ -754,9 +704,8 @@
             const currentPageWidth = pageFlipSettings.width;
             const currentPageHeight = pageFlipSettings.height;
 
-            const pagePadding = 0;
-            const containerWidth = currentPageWidth - 2 * pagePadding;
-            const containerHeight = currentPageHeight - 2 * pagePadding;
+            const containerWidth = currentPageWidth;
+            const containerHeight = currentPageHeight;
 
             const viewportOriginal = page.getViewport({ scale: 1.0 });
             const baseScale = Math.min(
@@ -764,7 +713,12 @@
               containerHeight / viewportOriginal.height
             );
 
-            const qualityMultiplier = window.devicePixelRatio > 1.5 ? 1.5 : 2;
+            // Higher quality for fullscreen, lower for iframe
+            const isFullscreen = document.body.classList.contains('fullscreen-mode');
+            const qualityMultiplier = isFullscreen ? 
+              (window.devicePixelRatio > 1.5 ? 2 : 2.5) :  // High quality for fullscreen
+              (window.devicePixelRatio > 1.5 ? 1.2 : 1.5); // Lower quality for iframe
+              
             const renderScale = baseScale * qualityMultiplier;
             const viewport = page.getViewport({ scale: renderScale });
 
@@ -791,6 +745,7 @@
 
             await page.render(renderContext).promise;
 
+            // Add link overlays for URL highlighting
             const linkContainer = document.createElement("div");
             linkContainer.style.position = "absolute";
             linkContainer.style.top = "0";
@@ -805,29 +760,18 @@
             for (const annotation of annotations) {
               if (annotation.subtype === "Link") {
                 linkCount++;
-                const rect = viewport.convertToViewportRectangle(
-                  annotation.rect
-                );
+                const rect = viewport.convertToViewportRectangle(annotation.rect);
                 const [x1, y1, x2, y2] = rect;
 
                 const linkOverlay = document.createElement("div");
                 linkOverlay.className = "pdf-link-overlay";
 
-                const scaleFactorToCanvasStyle =
-                  containerWidth / viewport.width;
+                const scaleFactorToCanvasStyle = containerWidth / viewport.width;
 
-                linkOverlay.style.left = `${
-                  Math.min(x1, x2) * scaleFactorToCanvasStyle
-                }px`;
-                linkOverlay.style.top = `${
-                  Math.min(y1, y2) * scaleFactorToCanvasStyle
-                }px`;
-                linkOverlay.style.width = `${
-                  Math.abs(x2 - x1) * scaleFactorToCanvasStyle
-                }px`;
-                linkOverlay.style.height = `${
-                  Math.abs(y2 - y1) * scaleFactorToCanvasStyle
-                }px`;
+                linkOverlay.style.left = `${Math.min(x1, x2) * scaleFactorToCanvasStyle}px`;
+                linkOverlay.style.top = `${Math.min(y1, y2) * scaleFactorToCanvasStyle}px`;
+                linkOverlay.style.width = `${Math.abs(x2 - x1) * scaleFactorToCanvasStyle}px`;
+                linkOverlay.style.height = `${Math.abs(y2 - y1) * scaleFactorToCanvasStyle}px`;
                 linkOverlay.style.pointerEvents = "auto";
 
                 if (annotation.url) {
@@ -862,695 +806,4 @@
                         );
                         if (destInfo && destInfo.length > 0) {
                           const pageRef = destInfo[0];
-                          const targetPageNum =
-                            (await app.pdfDocument.getPageIndex(pageRef)) + 1;
-                          if (app.pageFlip)
-                            app.pageFlip.flip(targetPageNum - 1);
-                        }
-                      } catch (error) {
-                        console.error(
-                          "Error navigating to internal link:",
-                          error
-                        );
-                      }
-                    },
-                    true
-                  );
-                }
-                linkContainer.appendChild(linkOverlay);
-              }
-            }
-            if (linkCount > 0) pageContentHolder.appendChild(linkContainer);
-
-            app.pageCache.set(pageNumber, pageContentHolder);
-            return pageContentHolder;
-          } catch (error) {
-            console.error(`Error rendering page ${pageNumber}:`, error);
-            const errorElem = document.createElement("div");
-            errorElem.className = "text-red-500 p-4 text-center";
-            errorElem.innerHTML = `<p>Error loading page ${pageNumber}.</p><p class="text-xs">${
-              error.message || ""
-            }</p>`;
-            return errorElem;
-          }
-        }
-
-        async function updatePageContent(pageNumber, totalPages) {
-          const pageSelector = `[data-page-number="${pageNumber}"]`;
-          const pageDiv = document.querySelector(pageSelector);
-          if (!pageDiv) {
-            return;
-          }
-
-          const updateStartTime = Date.now();
-          const MIN_UPDATE_DELAY = 100;
-
-          try {
-            pageDiv.innerHTML = `
-                    <div class="page-placeholder flex items-center justify-center">
-                        <div class="page-loading"></div>
-                    </div>`;
-
-            const contentHolder = await Promise.race([
-              renderPageToCanvas(pageNumber),
-              new Promise((_, reject) =>
-                setTimeout(
-                  () => reject(new Error("Page render timeout")),
-                  10000
-                )
-              ),
-            ]);
-
-            const elapsedTime = Date.now() - updateStartTime;
-            if (elapsedTime < MIN_UPDATE_DELAY) {
-              await new Promise((resolve) =>
-                setTimeout(resolve, MIN_UPDATE_DELAY - elapsedTime)
-              );
-            }
-
-            if (document.contains(pageDiv)) {
-              pageDiv.innerHTML = "";
-              pageDiv.appendChild(contentHolder);
-              if (pageNumber > 1 && pageNumber < totalPages) {
-                if (getComputedStyle(pageDiv).position === "static") {
-                  pageDiv.style.position = "relative";
-                }
-                // const pageNumDisplay = document.createElement("div");
-                // pageNumDisplay.className =
-                //   "absolute bottom-2 right-2 text-xs text-gray-500 " +
-                //   "bg-white/50 px-2 py-1 rounded backdrop-blur-sm";
-                // pageNumDisplay.textContent = `Page ${pageNumber}`;
-                // pageDiv.appendChild(pageNumDisplay);
-              }
-            }
-          } catch (error) {
-            console.error(`Error updating page ${pageNumber}:`, error);
-            if (document.contains(pageDiv)) {
-              pageDiv.innerHTML = `
-                        <div class="flex flex-col items-center justify-center h-full p-4 text-red-500">
-                            <svg class="w-6 h-6 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-                            </svg>
-                            <div>Error loading page</div>
-                        </div>`;
-            }
-          }
-        }
-
-        async function handlePageFlipEvent(e) {
-          if (!app.pdfDocument || !app.pageFlip) return;
-
-          const newPageIndex = e.data;
-          const currentPageNumber = newPageIndex + 1;
-          const totalPages = app.pdfDocument.numPages;
-
-          updateProgressBar(newPageIndex, totalPages);
-
-          // Send page change message to parent window (if in iframe)
-          sendPageChangeToParent(currentPageNumber);
-
-          const pagesToRender = new Set([currentPageNumber]);
-          if (
-            !app.pageFlip.getSettings().usePortrait &&
-            currentPageNumber < totalPages
-          ) {
-            pagesToRender.add(currentPageNumber + 1);
-          }
-          await preRenderPages(Array.from(pagesToRender), totalPages);
-        }
-
-        // Function to send page change messages to parent window
-        function sendPageChangeToParent(pageNumber) {
-          try {
-            // Check if we're in an iframe
-            if (window.parent && window.parent !== window) {
-              const message = {
-                type: 'pageChange',
-                pageNumber: pageNumber,
-                timestamp: Date.now(),
-                source: 'testing-mag-iframe'
-              };
-              
-              console.log('Sending page change message to parent:', message);
-              
-              // Send message to parent window
-              // Using '*' as target origin for now, but in production you should specify the actual parent origin
-              window.parent.postMessage(message, '*');
-            } else {
-              console.log('Not in iframe, skipping parent notification for page:', pageNumber);
-            }
-          } catch (error) {
-            console.error('Error sending page change message to parent:', error);
-          }
-        }
-
-        async function preRenderPages(targetPages, totalPages) {
-          if (app.isTransitioning || !targetPages.length) return;
-
-          const RANGE = 2;
-          const pagesToRender = new Set();
-
-          for (const page of targetPages) {
-            for (let i = -RANGE; i <= RANGE; i++) {
-              const neighborPage = page + i;
-              if (neighborPage > 0 && neighborPage <= totalPages) {
-                pagesToRender.add(neighborPage);
-              }
-            }
-          }
-
-          app.pendingRenderQueue.clear();
-          for (const pageNum of pagesToRender) {
-            if (!app.pageCache.has(pageNum)) {
-              app.pendingRenderQueue.add(pageNum);
-            }
-          }
-
-          const CONCURRENT_RENDERS = 2;
-          const pages = Array.from(app.pendingRenderQueue);
-
-          try {
-            await Promise.all(
-              Array(CONCURRENT_RENDERS)
-                .fill()
-                .map(async () => {
-                  while (pages.length > 0) {
-                    const pageNum = pages.shift();
-                    try {
-                      await updatePageContent(pageNum, totalPages);
-                      app.pendingRenderQueue.delete(pageNum);
-                    } catch (error) {
-                      // Error already logged in updatePageContent
-                    }
-                  }
-                })
-            );
-          } catch (error) {
-            console.error("Error in pre-rendering process:", error);
-          }
-        }
-
-        async function loadPDF(pdfUrl) {
-          if (!app.elements.loadingOverlay || !app.elements.flipBook) {
-            console.error("Essential elements for PDF loading are missing.");
-            return;
-          }
-          app.elements.loadingOverlay.style.display = "flex";
-
-          try {
-            app.elements.flipBook.innerHTML = "";
-            app.pageCache.clear();
-
-            const loadingTask = pdfjsLib.getDocument(pdfUrl);
-            app.pdfDocument = await Promise.race([
-              loadingTask.promise,
-              new Promise((_, reject) =>
-                setTimeout(
-                  () => reject(new Error("PDF loading timeout")),
-                  30000
-                )
-              ),
-            ]);
-
-            const totalPages = app.pdfDocument.numPages;
-
-            for (let i = 1; i <= totalPages; i++) {
-              const pageDiv = createPageDiv(i, totalPages);
-              app.elements.flipBook.appendChild(pageDiv);
-            }
-
-            await waitForReflow();
-
-            const flipbookContainerElement = app.elements.flipBook;
-            const containerWidth = flipbookContainerElement.clientWidth;
-            const containerHeight = flipbookContainerElement.clientHeight;
-
-            if (containerWidth <= 0 || containerHeight <= 0) {
-              console.error(
-                "Flipbook container has zero dimensions before initial init."
-              );
-              app.elements.flipBook.innerHTML = `<div class="p-5 text-red-500 text-center">Error: Flipbook container has invalid dimensions. Cannot display content.</div>`;
-              app.elements.loadingOverlay.style.display = "none";
-              return;
-            }
-
-            // --- START CHANGE: Responsive Logic ---
-            const mobileBreakpoint = 768; // Mobile breakpoint in pixels
-            const isMobile = window.innerWidth < mobileBreakpoint;
-
-            // For mobile, page width is the full container width. For desktop, it's half.
-            const pageWidth = isMobile ? containerWidth : Math.floor(containerWidth / 2);
-            const pageHeight = containerHeight;
-            // --- END CHANGE ---
-
-            // Convert page number to zero-based index for flipbook
-            const initialPageIndex = Math.max(0, INITIAL_PAGE_NUMBER - 1);
-            
-            // --- START CHANGE: Pass `isMobile` flag ---
-            await initFlipbookInstance(initialPageIndex, pageWidth, pageHeight, isMobile);
-            // --- END CHANGE ---
-
-
-            // Calculate initial pages to render around the starting page
-            const startPage = INITIAL_PAGE_NUMBER;
-            const initialPages = new Set([
-              startPage,
-              ...(startPage > 1 ? [startPage - 1] : []),
-              ...(startPage < totalPages ? [startPage + 1] : []),
-              ...(startPage > 2 ? [1] : []), // Always include first page for cover
-              ...(startPage < totalPages - 1 ? [totalPages] : []), // Always include last page
-            ]);
-
-            await Promise.all(
-              Array.from(initialPages).map((pageNum) => {
-                if (
-                  app.elements.flipBook.querySelector(
-                    `[data-page-number="${pageNum}"]`
-                  )
-                ) {
-                  return updatePageContent(pageNum, totalPages);
-                }
-                return Promise.resolve();
-              })
-            );
-
-            await waitForReflow();
-            initializeProgressBar();
-            // Update progress bar to reflect the initial page
-            updateProgressBar(initialPageIndex, totalPages);
-            // Send initial page notification to parent
-            sendPageChangeToParent(INITIAL_PAGE_NUMBER);
-          } catch (error) {
-            console.error("Error loading PDF:", error);
-            app.elements.flipBook.innerHTML = `
-                    <div class="p-5 text-red-500 flex flex-col items-center justify-center">
-                        <svg class="w-8 h-8 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-                        </svg>
-                        <div>Failed to load PDF: ${error.message}</div>
-                    </div>`;
-          } finally {
-            app.elements.loadingOverlay.style.display = "none";
-          }
-        }
-
-        // --- START CHANGE: Update function to accept `isMobile` flag ---
-        async function initFlipbookInstance(startPageIdx, pageW, pageH, isMobile) {
-        // --- END CHANGE ---
-          if (app.isResizing && app.pageFlip) {
-            return;
-          }
-
-          try {
-            app.isResizing = true;
-
-            if (app.pageFlip) {
-              const currentIdx = app.pageFlip.getCurrentPageIndex();
-              app.pageFlip.destroy();
-              app.pageFlip = null;
-              startPageIdx = currentIdx;
-            }
-
-            await waitForReflow();
-
-            const flipBookElement = app.elements.flipBook;
-            if (!flipBookElement || pageW <= 0 || pageH <= 0) {
-              console.error(
-                "Flipbook container not ready or invalid dimensions for init.",
-                pageW,
-                pageH,
-                flipBookElement
-              );
-              throw new Error(
-                "Flipbook container not ready or invalid dimensions."
-              );
-            }
-
-            app.pageFlip = new St.PageFlip(flipBookElement, {
-              width: pageW,
-              height: pageH,
-              size: "fixed",
-              minWidth: Math.min(300, pageW),
-              maxWidth: pageW,
-              minHeight: Math.min(400, pageH),
-              maxHeight: pageH,
-              maxShadowOpacity: 0.5,
-              showCover: true,
-              mobileScrollSupport: true,
-              flippingTime: 800,
-              // --- START CHANGE: Set usePortrait based on mobile state ---
-              usePortrait: isMobile,
-              // --- END CHANGE ---
-              startPage: startPageIdx,
-              startZIndex: 20,
-              autoSize: false,
-              drawShadow: true,
-            });
-
-            const pageElements =
-              flipBookElement.querySelectorAll(".flipbook-page");
-            if (!pageElements.length) {
-              throw new Error(
-                "No page elements to load into PageFlip instance."
-              );
-            }
-
-            await Promise.race([
-              new Promise((resolve) => {
-                app.pageFlip.loadFromHTML(pageElements);
-                app.pageFlip.flip(startPageIdx, "immediate");
-                setTimeout(resolve, 150);
-              }),
-              new Promise((_, reject) =>
-                setTimeout(
-                  () => reject(new Error("PageFlip HTML loading timeout")),
-                  5000
-                )
-              ),
-            ]);
-
-            app.pageFlip.off("flip");
-            app.pageFlip.off("changeState");
-
-            app.pageFlip.on("flip", handlePageFlipEvent);
-            app.pageFlip.on("changeState", (e) => {
-              if (e.data === "read") {
-                handlePageFlipEvent({
-                  data: app.pageFlip.getCurrentPageIndex(),
-                });
-              }
-            });
-            handlePageFlipEvent({ data: startPageIdx });
-
-            return app.pageFlip;
-          } catch (error) {
-            console.error("Error initializing flipbook:", error);
-            if (app.pageFlip) {
-              app.pageFlip.destroy();
-              app.pageFlip = null;
-            }
-          } finally {
-            app.isResizing = false;
-          }
-        }
-
-        function updateProgressBar(currentPageIndex, totalPages) {
-          const elements = {
-            fill: document.getElementById("progress-bar-fill"),
-            handle: document.getElementById("progress-bar-handle"),
-          };
-
-          if (Object.values(elements).some((el) => !el)) return;
-
-          const progress = (() => {
-            if (totalPages <= 1) return currentPageIndex >= 0 ? 100 : 0;
-            return Math.max(
-              0,
-              Math.min(100, (currentPageIndex / (totalPages - 1)) * 100)
-            );
-          })();
-
-          const currentPageDisplay = currentPageIndex + 1;
-          const progressPercent = Math.round(progress);
-
-          try {
-            elements.fill.style.width = `${progress}%`;
-            elements.handle.style.left = `${progress}%`;
-            elements.handle.setAttribute("aria-valuenow", progressPercent);
-            elements.handle.setAttribute(
-              "aria-valuetext",
-              `${progressPercent}% complete`
-            );
-          } catch (error) {
-            console.error("Error updating progress bar:", error);
-          }
-        }
-
-        function initializeProgressBar() {
-          const elements = {
-            container: document.querySelector(".progress-bar-container"),
-            handle: document.getElementById("progress-bar-handle"),
-            fill: document.getElementById("progress-bar-fill"),
-            tooltip: document.getElementById("progress-tooltip"),
-            tooltipPageInfo: document.getElementById("tooltip-page-info"),
-          };
-
-          if (Object.values(elements).some((el) => !el)) {
-            console.error("Missing progress bar elements for init");
-            return;
-          }
-
-          const state = { isDragging: false };
-
-          function updatePosition(progress) {
-            const validProgress = Math.max(0, Math.min(100, progress));
-            elements.fill.style.width = `${validProgress}%`;
-            elements.handle.style.left = `${validProgress}%`;
-          }
-
-          function showTooltip() {
-            if (elements.tooltip) {
-              elements.tooltip.style.opacity = '1';
-            }
-          }
-
-          function hideTooltip() {
-            if (elements.tooltip) {
-              elements.tooltip.style.opacity = '0';
-            }
-          }
-
-          function seekToProgress(progress) {
-            if (!app.pdfDocument || !app.pageFlip) return;
-            const targetPage =
-              app.pdfDocument.numPages <= 1
-                ? 0
-                : Math.round((progress / 100) * (app.pdfDocument.numPages - 1));
-
-            if (targetPage >= 0 && targetPage < app.pdfDocument.numPages) {
-              app.pageFlip.flip(targetPage);
-            }
-          }
-
-          const handlers = {
-            startDrag(e) {
-              e.preventDefault();
-              state.isDragging = true;
-              document.addEventListener("mousemove", handlers.drag);
-              document.addEventListener("mouseup", handlers.stopDrag);
-              document.body.style.userSelect = "none";
-            },
-
-            drag(e) {
-              if (!state.isDragging || !app.pdfDocument) return;
-              const rect = elements.container.getBoundingClientRect();
-              const progress = ((e.clientX - rect.left) / rect.width) * 100;
-              updatePosition(progress);
-            },
-
-            stopDrag() {
-              if (!state.isDragging) return;
-              state.isDragging = false;
-              document.removeEventListener("mousemove", handlers.drag);
-              document.removeEventListener("mouseup", handlers.stopDrag);
-              document.body.style.userSelect = "";
-              const progress = parseFloat(elements.handle.style.left) || 0;
-              seekToProgress(progress);
-            },
-
-            handleClick(e) {
-              if (state.isDragging || !app.pdfDocument || !app.pageFlip) return;
-              const rect = elements.container.getBoundingClientRect();
-              const progress = ((e.clientX - rect.left) / rect.width) * 100;
-              updatePosition(progress);
-              seekToProgress(progress);
-            },
-            handleMouseEnter() {
-              showTooltip();
-            },
-            
-            handleMouseLeave() {
-              hideTooltip();
-            },
-            
-            handleMouseMove(e) {
-                if (!app.pdfDocument || !elements.tooltip) return;
-
-                const containerRect = elements.container.getBoundingClientRect();
-                const containerWidth = containerRect.width;
-
-                // Calculate mouse X position relative to the container and clamp it
-                let relativeX = e.clientX - containerRect.left;
-                relativeX = Math.max(0, Math.min(relativeX, containerWidth));
-                
-                // Calculate progress percentage from the clamped relativeX
-                const progress = (relativeX / containerWidth) * 100;
-                
-                // Update the tooltip's text content first (this might change its width)
-                const totalPages = app.pdfDocument.numPages;
-                const pageIndex = totalPages <= 1 ? 0 : Math.round((progress / 100) * (totalPages - 1));
-                elements.tooltipPageInfo.textContent = `${pageIndex + 1} of ${totalPages}`;
-
-                // Get the tooltip's current width
-                const tooltipWidth = elements.tooltip.offsetWidth;
-
-                // Calculate the ideal left position to center the tooltip over the mouse
-                const idealLeft = relativeX - (tooltipWidth / 2);
-
-                // Clamp the left position to keep the tooltip within the container's bounds
-                const finalLeft = Math.max(0, Math.min(idealLeft, containerWidth - tooltipWidth));
-
-                // Set the position in pixels, not percentage
-                elements.tooltip.style.left = `${finalLeft}px`;
-            }
-          };
-
-          elements.handle.addEventListener("mousedown", handlers.startDrag);
-          elements.container.addEventListener("click", handlers.handleClick);
-          
-          // Add hover functionality for tooltip
-          elements.container.addEventListener("mouseenter", handlers.handleMouseEnter);
-          elements.container.addEventListener("mouseleave", handlers.handleMouseLeave);
-          elements.container.addEventListener("mousemove", handlers.handleMouseMove);
-        }
-
-        async function waitForReflow() {
-          return new Promise((resolve) => requestAnimationFrame(resolve));
-        }
-
-        // Simplified Fullscreen Exit Functionality
-        function initializeExitFullscreenButton() {
-          const fullscreenIcon = app.elements.fullscreenIcon;
-          const fullscreenBtn = app.elements.fullscreenBtn;
-          // Set static icon as it only exits fullscreen (no text needed since we removed it)
-          if (fullscreenIcon) {
-            fullscreenIcon.innerHTML = `
-              <path
-                  fill="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="0"
-                  d="M10.41,13.83,12,15.41,13.59,13.83,15,15.24l-1.59,1.59,1.59,1.59-1.41,1.41-1.59-1.59-1.59,1.59-1.41-1.41,1.59-1.59L9,15.24ZM15.24,9,13.83,10.41,15.41,12,13.83,13.59,15,15,18,12,15,9ZM9,9,6,12,9,15l1.41-1.41L8.83,12,10.41,10.41,9,9Z" transform="scale(1.2) translate(-2, -2)"
-              />`;
-          }
-
-          function isInFullscreen() {
-            // Check if this document or any parent is in fullscreen
-            const documentInFullscreen = !!(
-              document.fullscreenElement ||
-              document.webkitFullscreenElement ||
-              document.mozFullScreenElement ||
-              document.msFullscreenElement
-            );
-            
-            // If we're in an iframe, also check if the parent has us in fullscreen
-            let parentInFullscreen = false;
-            try {
-              if (window.parent && window.parent !== window) {
-                parentInFullscreen = !!(
-                  window.parent.document.fullscreenElement ||
-                  window.parent.document.webkitFullscreenElement ||
-                  window.parent.document.mozFullScreenElement ||
-                  window.parent.document.msFullscreenElement
-                );
-              }
-            } catch (e) {
-              // Cross-origin restriction - assume we might be in fullscreen if we can't check
-              // We'll try the exit anyway since it's safer to attempt than to block
-              console.log("Cannot check parent fullscreen state due to cross-origin restriction");
-            }
-            
-            return documentInFullscreen || parentInFullscreen;
-          }
-
-          function triggerExitFullscreen() {
-            console.log("triggerExitFullscreen() function called");
-            
-            // For iframe content, we'll try multiple approaches
-            let exitAttempted = false;
-            
-            // First, try exiting fullscreen on this document
-            if (document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement) {
-              console.log("This document has fullscreen element, attempting to exit...");
-              if (document.exitFullscreen) {
-                document.exitFullscreen().catch((err) => {
-                  console.warn("Could not exit fullscreen on this document:", err);
-                });
-                exitAttempted = true;
-              } else if (document.webkitExitFullscreen) {
-                document.webkitExitFullscreen();
-                exitAttempted = true;
-              }
-            }
-            
-            // If we're in an iframe, also try to exit fullscreen on the parent
-            try {
-              if (window.parent && window.parent !== window) {
-                console.log("Attempting to exit fullscreen on parent document...");
-                if (window.parent.document.exitFullscreen) {
-                  window.parent.document.exitFullscreen().catch((err) => {
-                    console.warn("Could not exit fullscreen on parent document:", err);
-                  });
-                  exitAttempted = true;
-                } else if (window.parent.document.webkitExitFullscreen) {
-                  window.parent.document.webkitExitFullscreen();
-                  exitAttempted = true;
-                }
-              }
-            } catch (e) {
-              console.log("Cannot access parent document due to cross-origin restriction");
-            }
-            
-            if (!exitAttempted) {
-              console.warn("No fullscreen exit method was available or attempted.");
-            }
-          }
-
-          fullscreenBtn.addEventListener("click", () => {
-            console.log("Exit Fullscreen button clicked");
-            
-            // Always attempt to exit fullscreen when the button is clicked
-            // since this is specifically an "Exit Fullscreen" button
-            triggerExitFullscreen();
-          });
-
-          // Optional: Listen for Escape key to ensure UI consistency if needed,
-          // though the primary action is now just exiting via button.
-          document.addEventListener("keydown", (e) => {
-            console.log("Keydown event detected, key:", e.key);
-            if (e.key === "Escape") {
-              console.log("Escape key detected - calling triggerExitFullscreen()");
-              // Always attempt to exit on Escape key since that's the standard behavior
-              triggerExitFullscreen();
-            }
-          });
-        }
-
-        // Download Functionality
-        function initializeDownloadButton() {
-          const downloadBtn = document.getElementById("download-btn");
-
-          if (!downloadBtn) return;
-
-          downloadBtn.addEventListener("click", function (event) {
-            event.preventDefault();
-            event.stopPropagation();
-
-            try {
-              const pdfUrl =
-                "{{ pdf_url }}";
-              const link = document.createElement("a");
-              link.href = pdfUrl;
-              const filename =
-                pdfUrl.substring(pdfUrl.lastIndexOf("/") + 1) || "download.pdf";
-              link.download = filename;
-              document.body.appendChild(link);
-              link.click();
-              document.body.removeChild(link);
-            } catch (error) {
-              console.error("Error downloading PDF:", error);
-            }
-          });
-        }
-      })(); // End IIFE
-    </script>
-  </body>
-</html>
+                          const targetPage

@@ -1,6 +1,7 @@
 from .general_elements import *
 from .homepage_elements import *
 from .category_page_elements import *
+from .magazine_elements import *
 from .blog_page import *
 from ..db_handler import get_blog
 
@@ -176,3 +177,89 @@ def get_blog_preview(blog_data):
             }
     
     return asyncio.run(get_blog_page_async())
+
+def get_magazine_home_page():
+    data = get_page_data("magazine_homepage")
+    page_data = data.get("page_data", {})
+    print(f"Page data for magazine homepage: {page_data}")
+    async def get_magazine_home_page_async():
+        start_time = time.time()
+        loop = asyncio.get_event_loop()
+        
+        # Execute all functions in parallel using thread pool
+        tasks = [
+            loop.run_in_executor(None, get_header),
+            loop.run_in_executor(None, get_magazine_homepage_hero_section, page_data['hero_section']),
+            # loop.run_in_executor(None, get_magazine_top_stories_section),
+            # loop.run_in_executor(None, get_magazine_featured_section),
+            loop.run_in_executor(None, get_more_magazines, page_data),
+            loop.run_in_executor(None, get_horizontal_ad_banner, page_data["horizontal_ad_banner_2"]),
+            loop.run_in_executor(None, get_fuel_your_ambitions_html),
+            loop.run_in_executor(None, get_footer)
+        ]
+        
+        # Execute all tasks in parallel
+        results = await asyncio.gather(*tasks)
+        
+        total_body = "\n".join(results)
+        end_time = time.time()
+        print(f"Magazine homepage generated in {end_time - start_time:.2f} seconds")
+        return EMPTY_HOMEPAGE_TEMPLATE.replace("[[total_body]]", total_body)
+    
+    return asyncio.run(get_magazine_home_page_async())
+
+
+
+def get_magazine_page(pdf_url):
+    data = get_page_data("magazine_homepage")
+    page_data = data.get("page_data", {})
+    print(f"Page data for magazine homepage: {page_data}")
+    async def get_magazine_page_async():
+        start_time = time.time()
+        loop = asyncio.get_event_loop()
+        
+        # Execute all functions in parallel using thread pool
+        tasks = [
+            loop.run_in_executor(None, get_header),
+            loop.run_in_executor(None, get_magazine_hero_section, pdf_url),
+            # loop.run_in_executor(None, get_magazine_top_stories_section),
+            # loop.run_in_executor(None, get_magazine_featured_section),
+            loop.run_in_executor(None, get_more_magazines, page_data),
+            loop.run_in_executor(None, get_horizontal_ad_banner, page_data["horizontal_ad_banner_2"]),
+            loop.run_in_executor(None, get_fuel_your_ambitions_html),
+            loop.run_in_executor(None, get_footer)
+        ]
+        
+        # Execute all tasks in parallel
+        results = await asyncio.gather(*tasks)
+        
+        total_body = "\n".join(results)
+        end_time = time.time()
+        print(f"Magazine homepage generated in {end_time - start_time:.2f} seconds")
+        return EMPTY_MAGAZINE_TEMPLATE.replace("[[placeholder]]", total_body)
+    
+    return asyncio.run(get_magazine_page_async())
+
+
+def upload_new_magazine():
+    async def upload_new_magazine_async():
+        start_time = time.time()
+        loop = asyncio.get_event_loop()
+
+        # Execute all functions in parallel using thread pool
+        tasks = [
+            loop.run_in_executor(None, get_header),
+            loop.run_in_executor(None, UPLOAD_NEW_MAGAZINE_TEMPLATE),
+            loop.run_in_executor(None, get_fuel_your_ambitions_html),
+            loop.run_in_executor(None, get_footer)
+        ]
+
+        # Execute all tasks in parallel
+        results = await asyncio.gather(*tasks)
+
+        total_body = "\n".join(results)
+        end_time = time.time()
+        print(f"Upload new magazine page generated in {end_time - start_time:.2f} seconds")
+        return EMPTY_HOMEPAGE_TEMPLATE.replace("[[total_body]]", total_body)
+
+    return asyncio.run(upload_new_magazine_async())
