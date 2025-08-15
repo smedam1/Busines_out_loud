@@ -5,7 +5,8 @@ from .ad_manager import (get_organizations_db,
                          get_ads_db,
                          add_ad_db,
                          update_ad_db,
-                         delete_ad_db)
+                         delete_ad_db,
+                         get_orgs_db)
 
 from.auth import (admin_login_db_check,
                   user_register_db,
@@ -36,4 +37,5 @@ from .general_function import (sha256_hash,
                                get_leadership_details,
                                update_main_page_db,
                                delete_main_page_db,
-                               get_chosen_orgs)
+                               get_chosen_orgs,
+                               get_main_pages_db)

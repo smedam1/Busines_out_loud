@@ -99,27 +99,36 @@ def delete_ad_db(ad_id):
     response = supabase.table("ads").delete().eq("id", ad_id).execute()
     return response.data
 
-def get_ads_db(data:dict):
-    """
-    Fetch ads from the database based on the provided filters.
+# def get_ads_db(data:dict):
+#     """
+#     Fetch ads from the database based on the provided filters.
     
-    Args:
-        data (dict): {"aspect_ratio": "16:9", "number_of_ads": "5"}
+#     Args:
+#         data (dict): {"aspect_ratio": "16:9", "number_of_ads": "5"}
     
-    Returns:
-        list: List of ads matching the criteria.
+#     Returns:
+#         list: List of ads matching the criteria.
 
-    Logic: 
-        we first get a list of orgs based on their weightage, we choose one org for each ad and then randomly choose one ad ffrom each org based on the aspect ratio.
-    """
-    aspect_ratio = data.get("aspect_ratio")
-    number_of_ads = int(data.get("number_of_ads", 1))
+#     Logic: 
+#         we first get a list of orgs based on their weightage, we choose one org for each ad and then randomly choose one ad ffrom each org based on the aspect ratio.
+#     """
+#     aspect_ratio = data.get("aspect_ratio")
+#     number_of_ads = int(data.get("number_of_ads", 1))
 
-    chosen_orgs = get_chosen_orgs(k=number_of_ads)
-    ads = []
-    for org in chosen_orgs:
-        org_ads_response = supabase.table("ads").select("*").eq("organization", org).eq("aspect_ratio", aspect_ratio).execute()
-        if org_ads_response.data:
-            ads.append(random.choice(org_ads_response.data))
+#     chosen_orgs = get_chosen_orgs(k=number_of_ads)
+#     ads = []
+#     for org in chosen_orgs:
+#         org_ads_response = supabase.table("ads").select("*").eq("organization", org).eq("aspect_ratio", aspect_ratio).execute()
+#         if org_ads_response.data:
+#             ads.append(random.choice(org_ads_response.data))
     
-    return ads if ads else []  # Return an empty list if no ads found
+#     return ads if ads else []  # Return an empty list if no ads found
+
+
+def get_ads_db():
+    response = supabase.table("ads").select("*").order("created_at", desc=True).execute()
+    return response.data if response.data else []
+
+def get_orgs_db(org_id):
+    response = supabase.table("organization").select("organization").eq("id", org_id).single().execute()
+    return response

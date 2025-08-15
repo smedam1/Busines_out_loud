@@ -872,10 +872,13 @@
       window.addEventListener('message', function(event) {
         if (!event.data) return;
         
-        // Handle download responses
-        if (event.data.action === 'downloadResponse') {
-          console.log('Received download response from iframe:', event.data);
-          window.flipbookControl._triggerDownload(event.data.pdfUrl, event.data.filename);
+        // Handle download requests/responses from iframe
+        if (event.data.action === 'download' || event.data.action === 'downloadResponse') {
+          console.log('Download request from iframe:', event.data);
+          const filename = event.data.filename || (event.data.pdfUrl ? event.data.pdfUrl.split('/').pop() : 'document.pdf');
+          // Proxy through same-origin to avoid Edge/extension blocking on Supabase domain
+          const proxiedUrl = `${window.location.origin}/download_proxy?pdf=${encodeURIComponent(event.data.pdfUrl)}&filename=${encodeURIComponent(filename)}`;
+          window.flipbookControl._triggerDownload(proxiedUrl, filename);
         }
         
         // Handle fullscreen requests
@@ -967,7 +970,7 @@
                 class="relative w-full max-w-[50rem] h-[33rem] mx-auto"
               >
                 
-                <iframe id="my-flipbook-container" class="w-full h-full max-w-[50rem] max-h-[33rem]" allow="clipboard-write" sandbox="allow-top-navigation allow-top-navigation-by-user-activation allow-downloads allow-scripts allow-same-origin allow-popups allow-modals allow-popups-to-escape-sandbox allow-forms" allowfullscreen="true" style="position:absolute;border:none;width:100%;height:100%;left:0;right:0;top:0;bottom:0;overflow:hidden;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);border:2px solid #e5e7eb;" src="http://127.0.0.1:5000/flipbook/513ea3f5-9e2a-41eb-bd6b-87e2511c13e6?page=4"></iframe>
+                <iframe id="my-flipbook-container" class="w-full h-full max-w-[50rem] max-h-[33rem]" allow="clipboard-write" sandbox="allow-top-navigation allow-top-navigation-by-user-activation allow-downloads allow-downloads-without-user-activation allow-scripts allow-same-origin allow-popups allow-modals allow-popups-to-escape-sandbox allow-forms" allowfullscreen="true" style="position:absolute;border:none;width:100%;height:100%;left:0;right:0;top:0;bottom:0;overflow:hidden;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);border:2px solid #e5e7eb;" src="http://127.0.0.1:5000/flipbook/513ea3f5-9e2a-41eb-bd6b-87e2511c13e6?page=4"></iframe>
               </div>
     
               

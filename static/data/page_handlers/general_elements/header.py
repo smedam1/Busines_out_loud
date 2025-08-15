@@ -44,7 +44,7 @@ HEADER_TEMPLATE = """<header class="w-full bg-black relative">
                         <span class="relative z-10 flex items-center justify-center gap-2"> <i class="ph ph-sign-in text-lg"></i> <span>Login</span> </span>
                     </a>
                 </div>
-                <a class="mobile-menu-item"><div class="flex items-center"><i class="ph ph-book-open text-white text-lg"></i><span class="item-title">Magazine</span></div></a>
+                <a href="/magazine" class="mobile-menu-item"><div class="flex items-center"><i class="ph ph-book-open text-white text-lg"></i><span class="item-title">Magazine</span></div></a>
                 <a class="mobile-menu-item"><div class="flex items-center"><i class="ph ph-envelope-open text-white text-lg"></i><span class="item-title">Newsletters</span></div></a>
                 
                 [[mobile_nav_links]]
